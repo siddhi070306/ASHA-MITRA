@@ -1,0 +1,71 @@
+/* Custom dotted grid background for premium dashboard look */
+.dotted-bg {
+  background-color: #FDFBF7;
+  background-image: radial-gradient(#e2e8f0 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+/* Animations for simulated voice recording waveform */
+@keyframes wave-bounce {
+  0%, 100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1.2);
+  }
+}
+
+.animate-wave-1 {
+  animation: wave-bounce 1s ease-in-out infinite;
+  animation-delay: 0.1s;
+}
+
+.animate-wave-2 {
+  animation: wave-bounce 1s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+
+.animate-wave-3 {
+  animation: wave-bounce 1s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+
+.animate-wave-4 {
+  animation: wave-bounce 1s ease-in-out infinite;
+  animation-delay: 0.4s;
+}
+
+.animate-wave-5 {
+  animation: wave-bounce 1s ease-in-out infinite;
+  animation-delay: 0.5s;
+}
+
+.animate-wave-6 {
+  animation: wave-bounce 1s ease-in-out infinite;
+  animation-delay: 0.6s;
+}
+
+/* Smooth transition for views */
+.fade-in-view {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hide scrollbar for clean dashboard lists */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
