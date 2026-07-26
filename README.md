@@ -10,7 +10,7 @@ The platform addresses challenges such as poor connectivity, language barriers, 
 
 ## Live Demo
 
-🔗 https://asha-mitra.onrender.com/
+🔗 https://asha-mitra.vercel.app/
 
 ---
 
