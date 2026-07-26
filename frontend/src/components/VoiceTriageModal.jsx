@@ -148,7 +148,7 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
                 }
               });
             },
-            { timeout: 5000 }
+            { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
           );
         } else {
           setGpsState('error');

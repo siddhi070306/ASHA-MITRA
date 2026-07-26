@@ -2,10 +2,10 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { MapPin, Phone, ExternalLink, RefreshCw, ArrowLeft, Loader2 } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { getNearbyHospitalsAsync, getHaversineDistance } from '../utils/hospitals';
+import { getNearbyHospitalsAsync, getHaversineDistance, reverseGeocode, registerDynamicVillage } from '../utils/hospitals';
 import { useLanguage } from '../context/LanguageContext';
 
-export default function HospitalsMap({ userCoords, userLocationName, onBack }) {
+export default function HospitalsMap({ userCoords, userLocationName, setUserCoords, setUserLocationName, isLocationManual, resetToAutoGps, onBack }) {
   const { t } = useLanguage();
   
   const [initialLoading, setInitialLoading] = useState(true);
@@ -22,12 +22,76 @@ export default function HospitalsMap({ userCoords, userLocationName, onBack }) {
   const hospitalMarkersRef = useRef({});
   const lastFetchedCoordsRef = useRef(null);
 
-  // Fallback coordinates (Katni region)
-  const defaultLat = 23.8000;
-  const defaultLng = 80.3500;
+  // Fallback coordinates (Model Colony, Pune)
+  const defaultLat = 18.5283;
+  const defaultLng = 73.8342;
   
   const lat = userCoords ? userCoords.latitude : defaultLat;
   const lng = userCoords ? userCoords.longitude : defaultLng;
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const dragEndRef = useRef(null);
+  
+  dragEndRef.current = async (e) => {
+    const { lat: markerLat, lng: markerLng } = e.target.getLatLng();
+    const areaName = await reverseGeocode(markerLat, markerLng);
+    if (setUserCoords) {
+      setUserCoords({ latitude: markerLat, longitude: markerLng }, areaName || 'Custom Location', true);
+    }
+  };
+
+  const handleSearchSubmit = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    setSearchLoading(true);
+    setSearchResults([]);
+    setMapError(null);
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`, {
+        headers: {
+          'Accept-Language': 'en',
+          'User-Agent': 'ASHA-Saathi-Triage-Companion-Agent'
+        }
+      });
+      if (!response.ok) throw new Error("Search request failed");
+      const data = await response.json();
+      if (data.length === 0) {
+        setMapError("No locations found for your search query.");
+      } else {
+        setSearchResults(data);
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+      setMapError("Failed to search location. Please try again.");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSelectSearchResult = async (result) => {
+    const targetLat = parseFloat(result.lat);
+    const targetLng = parseFloat(result.lon);
+    
+    setSearchQuery('');
+    setSearchResults([]);
+
+    const addr = result.address || {};
+    const areaName = addr.village || addr.town || addr.suburb || addr.city_district || addr.city || result.display_name.split(',')[0] || 'Selected Location';
+    
+    if (setUserCoords) {
+      setUserCoords({ latitude: targetLat, longitude: targetLng }, areaName, true);
+    }
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([targetLat, targetLng], 14);
+      setTimeout(() => {
+        fetchFacilities(true);
+      }, 300);
+    }
+  };
 
   // 1. Fetch medical facilities (with distance thresholding & smooth background updates)
   const fetchFacilities = useCallback(async (force = false) => {
@@ -71,6 +135,16 @@ export default function HospitalsMap({ userCoords, userLocationName, onBack }) {
     fetchFacilities(false);
   }, [fetchFacilities]);
 
+  // Recenter map when manual override is deactivated
+  useEffect(() => {
+    if (!isLocationManual && mapInstanceRef.current && userCoords) {
+      mapInstanceRef.current.setView([userCoords.latitude, userCoords.longitude], 14);
+      setTimeout(() => {
+        fetchFacilities(true);
+      }, 300);
+    }
+  }, [isLocationManual]);
+
   // 2. Initialize Leaflet Map Instance ONCE when map container mounts
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
@@ -109,13 +183,21 @@ export default function HospitalsMap({ userCoords, userLocationName, onBack }) {
         iconAnchor: [15, 15]
       });
 
-      const userMarker = L.marker([lat, lng], { icon: userMarkerIcon }).addTo(map);
+      const userMarker = L.marker([lat, lng], { icon: userMarkerIcon, draggable: true }).addTo(map);
       userMarker.bindPopup(`
         <div style="font-family: system-ui, sans-serif; font-size: 13px; line-height: 1.4; color: #0A2540; padding: 2px;">
           <b style="color: #1D4ED8; font-size: 13px;">📍 Your Current Location</b><br/>
-          <span style="color: #64748B;">${userLocationName || 'Active GPS Center'}</span>
+          <span style="color: #64748B;">${userLocationName || 'Active GPS Center'}</span><br/>
+          <span style="color: #E07A5F; font-size: 10px; font-weight: bold;">(Drag marker to refine precision)</span>
         </div>
       `);
+      
+      userMarker.on('dragend', (e) => {
+        if (dragEndRef.current) {
+          dragEndRef.current(e);
+        }
+      });
+
       userMarkerRef.current = userMarker;
 
       // Recalculate tile sizes after container layout is stabilized
@@ -291,6 +373,68 @@ export default function HospitalsMap({ userCoords, userLocationName, onBack }) {
 
         {/* Left Side: Hospital & Clinic Sidebar List */}
         <div className="w-full lg:w-96 flex flex-col border-r border-slate-100 bg-[#FDFBF7] shrink-0 h-1/2 lg:h-full overflow-hidden">
+          
+          {/* Geocoding Location Search */}
+          <form onSubmit={handleSearchSubmit} className="p-3 bg-white border-b border-slate-100 flex gap-2 shrink-0">
+            <div className="relative flex-grow">
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search village, town, city..."
+                className="w-full pl-3 pr-8 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#E07A5F]"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchQuery(''); setSearchResults([]); }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm font-bold"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={searchLoading}
+              className="px-3 py-2 bg-[#E07A5F] hover:bg-[#D46A4F] text-white text-xs font-bold rounded-xl shadow-sm transition-colors flex items-center gap-1 shrink-0"
+            >
+              {searchLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                'Search'
+              )}
+            </button>
+          </form>
+
+          {/* Search Results Dropdown List */}
+          {searchResults.length > 0 && (
+            <div className="bg-white border-b border-slate-200 max-h-48 overflow-y-auto shrink-0 shadow-inner">
+              {searchResults.map((result, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => handleSelectSearchResult(result)}
+                  className="px-4 py-2 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 text-left"
+                >
+                  <div className="font-bold text-slate-800 text-xs">{result.display_name.split(',')[0]}</div>
+                  <div className="text-slate-400 text-[10px] truncate mt-0.5">{result.display_name}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {isLocationManual && (
+            <div className="px-3 pb-3 bg-white border-b border-slate-100 flex gap-2 shrink-0 animate-fade-in">
+              <button 
+                onClick={resetToAutoGps}
+                className="w-full py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                title="Re-enable automatic browser GPS location tracking"
+              >
+                <MapPin className="w-3.5 h-3.5 text-[#E07A5F]" />
+                <span>Reset to Auto GPS</span>
+              </button>
+            </div>
+          )}
           
           {/* Header & Refresh */}
           <div className="p-4 bg-white border-b border-slate-100 flex items-center justify-between shrink-0">

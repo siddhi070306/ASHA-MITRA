@@ -73,9 +73,24 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // User Real-time Geolocation Coordinates
-  const [userCoords, setUserCoords] = useState(null);
-  const [userLocationName, setUserLocationName] = useState('Locating...');
+  // User Real-time Geolocation Coordinates & Manual Lock State
+  const [isLocationManual, setIsLocationManual] = useState(() => {
+    return localStorage.getItem('asha_location_manual') === 'true';
+  });
+
+  const [userCoords, setUserCoords] = useState(() => {
+    const saved = localStorage.getItem('asha_user_coords');
+    if (saved) return JSON.parse(saved);
+    const savedUser = localStorage.getItem('asha_user');
+    return savedUser ? JSON.parse(savedUser).coordinates : null;
+  });
+
+  const [userLocationName, setUserLocationName] = useState(() => {
+    const saved = localStorage.getItem('asha_user_location');
+    if (saved) return saved;
+    const savedUser = localStorage.getItem('asha_user');
+    return savedUser ? JSON.parse(savedUser).location || 'Locating...' : 'Locating...';
+  });
 
   // Registered ASHA/ANM workers state
   const [registeredUsers, setRegisteredUsers] = useState(() => {
@@ -125,6 +140,10 @@ function App() {
       if (navigator.geolocation) {
         watchId = navigator.geolocation.watchPosition(
           (position) => {
+            if (isLocationManualRef.current) {
+              console.log("Real-time location watch update ignored (Manual override locked)");
+              return;
+            }
             const { latitude, longitude } = position.coords;
             setUserCoords({ latitude, longitude });
             console.log("Real-time location updated:", latitude, longitude);
@@ -148,6 +167,7 @@ function App() {
           },
           (error) => {
             console.warn("Real-time location watch error:", error);
+            if (isLocationManualRef.current) return;
             if (user.coordinates) {
               setUserCoords(user.coordinates);
               setUserLocationName(user.location || 'Locked Location');
@@ -179,6 +199,53 @@ function App() {
       registerDynamicVillage(v.name, v.lat, v.lng);
     });
   }, []);
+
+  const isLocationManualRef = useRef(isLocationManual);
+  useEffect(() => {
+    isLocationManualRef.current = isLocationManual;
+  }, [isLocationManual]);
+
+  const updateLocation = (coords, name, manual = false) => {
+    if (coords) {
+      setUserCoords(coords);
+      localStorage.setItem('asha_user_coords', JSON.stringify(coords));
+    }
+    if (name) {
+      setUserLocationName(name);
+      localStorage.setItem('asha_user_location', name);
+    }
+    if (manual) {
+      setIsLocationManual(true);
+      localStorage.setItem('asha_location_manual', 'true');
+    }
+  };
+
+  const resetToAutoGps = () => {
+    setIsLocationManual(false);
+    localStorage.removeItem('asha_location_manual');
+    localStorage.removeItem('asha_user_coords');
+    localStorage.removeItem('asha_user_location');
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setUserCoords({ latitude, longitude });
+          reverseGeocode(latitude, longitude).then(name => {
+            if (name) setUserLocationName(name);
+          });
+        },
+        (error) => {
+          console.warn("Reset GPS failed, falling back to profile location:", error);
+          if (user?.coordinates) {
+            setUserCoords(user.coordinates);
+            setUserLocationName(user.location || 'Locked Location');
+          }
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+  };
 
   const handleRegister = async (newUserData) => {
     setError(null);
@@ -661,6 +728,10 @@ function App() {
               <HospitalsMap 
                 userCoords={userCoords}
                 userLocationName={userLocationName}
+                setUserCoords={updateLocation}
+                setUserLocationName={setUserLocationName}
+                isLocationManual={isLocationManual}
+                resetToAutoGps={resetToAutoGps}
                 onBack={() => setCurrentView('home')}
               />
             )}

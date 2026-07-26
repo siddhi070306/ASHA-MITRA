@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Activity, Phone, Lock, ArrowRight, Globe, ChevronDown, MapPin, Check, User } from 'lucide-react';
 import { reverseGeocode } from '../utils/hospitals';
 import { useLanguage } from '../context/LanguageContext';
@@ -24,10 +24,8 @@ export default function Login({
   const [regRole, setRegRole] = useState('ASHA Worker');
   const [regLocation, setRegLocation] = useState('');
   const [regCoords, setRegCoords] = useState(null);
-  const [gpsLoading, setGpsLoading] = useState(false);
   const [regError, setRegError] = useState('');
   const [regLoading, setRegLoading] = useState(false);
-
   const [isGoogleCompleting, setIsGoogleCompleting] = useState(false);
   const [googleData, setGoogleData] = useState(null);
   const [googleCredential, setGoogleCredential] = useState('');
@@ -41,12 +39,8 @@ export default function Login({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken: response.credential })
       });
-      
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Google sign-in verification failed.');
-      }
-
+      if (!res.ok) throw new Error(data.error || 'Google sign-in failed.');
       if (data.isNewUser) {
         setGoogleData(data.googleData);
         setRegName(data.googleData.name || '');
@@ -57,15 +51,14 @@ export default function Login({
       }
     } catch (err) {
       console.error("Google Auth error:", err);
-      setRegError(err.message || 'Google Auth verification failed.');
+      setRegError(err.message || 'Google Auth failed.');
     }
   };
 
   const handleGoogleRegSubmit = async (e) => {
     e.preventDefault();
     setRegError('');
-    
-    if (!regName || !regPhone || !regLocation) {
+    if (!regName || !regPhone) {
       setRegError('Please fill out all required fields.');
       return;
     }
@@ -80,20 +73,16 @@ export default function Login({
           name: regName,
           phone: regPhone,
           role: regRole === 'ASHA Worker' ? 'ASHA Worker' : 'ANM Supervisor',
-          location: regLocation,
-          coordinates: regCoords
+          location: 'General Sector',
+          coordinates: { latitude: 18.5283, longitude: 73.8400 }
         })
       });
-
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Google registration completion failed.');
-      }
-
+      if (!response.ok) throw new Error(data.error || 'Registration failed.');
       handleGoogleLoginSuccess(data.user, data.token);
     } catch (err) {
-      console.error("Google Registration error:", err);
-      setRegError(err.message || 'Google registration completion failed.');
+      console.error("Google Reg error:", err);
+      setRegError(err.message || 'Registration failed.');
     } finally {
       setGoogleSubmitting(false);
     }
@@ -106,81 +95,33 @@ export default function Login({
     setRegError('');
   };
 
-  // Initialize and render Google One Tap / Sign-In Button
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) {
-      console.warn("Google Client ID is not configured in .env");
-      return;
-    }
-
-    const initializeGoogle = () => {
+    if (!GOOGLE_CLIENT_ID) return;
+    const initGoogle = () => {
       if (window.google) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleCredentialResponse,
         });
-
         if (!isGoogleCompleting && !isRegistering) {
           const container = document.getElementById("google-signin-btn");
           if (container) {
             window.google.accounts.id.renderButton(container, {
-              theme: "outline",
-              size: "large",
-              width: "380",
-              text: "continue_with",
-              shape: "rectangular"
+              theme: "outline", size: "large", width: "380", text: "continue_with", shape: "rectangular"
             });
           }
         }
       }
     };
-
-    initializeGoogle();
-
-    // Check again in case it loads asynchronously
-    const interval = setInterval(() => {
-      if (window.google) {
-        initializeGoogle();
-        clearInterval(interval);
-      }
-    }, 500);
-
+    initGoogle();
+    const interval = setInterval(() => { if (window.google) { initGoogle(); clearInterval(interval); } }, 500);
     return () => clearInterval(interval);
   }, [isRegistering, isGoogleCompleting]);
-
-  const handleFetchGPS = () => {
-    setGpsLoading(true);
-    setRegError('');
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setRegCoords({ latitude, longitude });
-          
-          const areaName = await reverseGeocode(latitude, longitude);
-          if (areaName) {
-            setRegLocation(areaName);
-          }
-          
-          setGpsLoading(false);
-        },
-        (err) => {
-          console.error("GPS Fetch error: ", err);
-          setRegError('Failed to capture GPS coordinates. Please allow location permissions.');
-          setGpsLoading(false);
-        },
-        { timeout: 8000 }
-      );
-    } else {
-      setRegError('Geolocation not supported by this browser.');
-      setGpsLoading(false);
-    }
-  };
 
   const handleRegSubmit = async (e) => {
     e.preventDefault();
     setRegError('');
-    if (!regName || !regPhone || !regPassword || !regLocation) {
+    if (!regName || !regPhone || !regPassword) {
       setRegError('Please fill out all required fields.');
       return;
     }
@@ -191,8 +132,8 @@ export default function Login({
         phone: regPhone,
         password: regPassword,
         role: regRole === 'ASHA Worker' ? 'ASHA Worker' : 'ANM Supervisor',
-        location: regLocation,
-        coordinates: regCoords
+        location: regLocation || 'General Sector',
+        coordinates: regCoords || { latitude: 18.5283, longitude: 73.8400 }
       });
     } catch (err) {
       setRegError(err.message || 'Registration failed.');
@@ -319,61 +260,19 @@ export default function Login({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('select_role')}</label>
-                    <select
-                      value={regRole}
-                      onChange={(e) => setRegRole(e.target.value)}
-                      className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none cursor-pointer"
-                    >
-                      <option value="ASHA Worker">{t('asha_label')}</option>
-                      <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('village')}</label>
-                    <input 
-                      type="text"
-                      required
-                      value={regLocation}
-                      onChange={(e) => setRegLocation(e.target.value)}
-                      className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#E07A5F] focus:outline-none transition-colors placeholder:text-slate-300 font-medium text-[#0A2540]" 
-                      placeholder={t('village_placeholder')}
-                    />
-                  </div>
+                <div>
+                  <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('select_role')}</label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value)}
+                    className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none cursor-pointer"
+                  >
+                    <option value="ASHA Worker">{t('asha_label')}</option>
+                    <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
+                  </select>
                 </div>
 
-                {/* GPS LOCK BLOCK */}
-                <div className="pt-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5 font-bold">Real-time Location Anchor</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleFetchGPS}
-                      disabled={gpsLoading}
-                      className={`flex-grow min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-2 border shadow-sm transition-all ${
-                        regCoords 
-                          ? 'bg-green-50 border-green-200 text-green-700' 
-                          : 'bg-white hover:bg-slate-50 border-slate-200 text-[#0A2540]'
-                      }`}
-                    >
-                      {gpsLoading ? (
-                        <div className="w-4 h-4 border-2 border-[#0A2540] border-t-transparent rounded-full animate-spin"></div>
-                      ) : regCoords ? (
-                        <Check className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <MapPin className="w-4 h-4 text-[#E07A5F]" />
-                      )}
-                      {gpsLoading ? t('gps_fetching') : regCoords ? t('gps_success') : t('fetch_gps')}
-                    </button>
-                  </div>
-                  {regCoords && (
-                    <div className="mt-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-mono text-slate-500 text-center">
-                      Locked: Lat {regCoords.latitude.toFixed(4)}, Lng {regCoords.longitude.toFixed(4)}
-                    </div>
-                  )}
-                </div>
+
 
                 <button 
                   type="submit" 
@@ -554,61 +453,19 @@ export default function Login({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('select_role')}</label>
-                    <select
-                      value={regRole}
-                      onChange={(e) => setRegRole(e.target.value)}
-                      className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none cursor-pointer"
-                    >
-                      <option value="ASHA Worker">{t('asha_label')}</option>
-                      <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('village')}</label>
-                    <input 
-                      type="text"
-                      required
-                      value={regLocation}
-                      onChange={(e) => setRegLocation(e.target.value)}
-                      className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#E07A5F] focus:outline-none transition-colors placeholder:text-slate-300 font-medium text-[#0A2540]" 
-                      placeholder={t('village_placeholder')}
-                    />
-                  </div>
+                <div>
+                  <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('select_role')}</label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value)}
+                    className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none cursor-pointer"
+                  >
+                    <option value="ASHA Worker">{t('asha_label')}</option>
+                    <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
+                  </select>
                 </div>
 
-                {/* GPS LOCK BLOCK */}
-                <div className="pt-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5 font-bold">Real-time Location Anchor</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleFetchGPS}
-                      disabled={gpsLoading}
-                      className={`flex-grow min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-2 border shadow-sm transition-all ${
-                        regCoords 
-                          ? 'bg-green-50 border-green-200 text-green-700' 
-                          : 'bg-white hover:bg-slate-50 border-slate-200 text-[#0A2540]'
-                      }`}
-                    >
-                      {gpsLoading ? (
-                        <div className="w-4 h-4 border-2 border-[#0A2540] border-t-transparent rounded-full animate-spin"></div>
-                      ) : regCoords ? (
-                        <Check className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <MapPin className="w-4 h-4 text-[#E07A5F]" />
-                      )}
-                      {gpsLoading ? t('gps_fetching') : regCoords ? t('gps_success') : t('fetch_gps')}
-                    </button>
-                  </div>
-                  {regCoords && (
-                    <div className="mt-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-mono text-slate-500 text-center">
-                      Locked: Lat {regCoords.latitude.toFixed(4)}, Lng {regCoords.longitude.toFixed(4)}
-                    </div>
-                  )}
-                </div>
+
 
                 <button 
                   type="submit" 

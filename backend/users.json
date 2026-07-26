@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "id": 1785073696923,
+    "name": "Admin",
+    "phone": "1234567890",
+    "googleId": "105279164088505991360",
+    "email": "admin0151@gmail.com",
+    "role": "ASHA Worker",
+    "location": "Model Colony",
+    "coordinates": {
+      "latitude": 18.525,
+      "longitude": 73.823
+    }
+  },
+  {
+    "id": 1785087776319,
+    "name": "Siddhi",
+    "phone": "9876543210",
+    "googleId": "101514270099552832079",
+    "email": "bsiddhi003@gmail.com",
+    "role": "ASHA Worker",
+    "location": "Wadgaon",
+    "coordinates": {
+      "latitude": 18.7425866,
+      "longitude": 73.6366603
+    }
+  }
+]
