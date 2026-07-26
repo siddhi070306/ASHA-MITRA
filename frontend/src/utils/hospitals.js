@@ -190,6 +190,36 @@ export async function forwardGeocode(name) {
 }
 
 /**
+ * Resolves location name or explicit coordinates into exact { latitude, longitude }
+ */
+export async function resolveLocationCoordinates(locationName, explicitCoords = null) {
+  if (explicitCoords && explicitCoords.latitude && explicitCoords.longitude) {
+    return explicitCoords;
+  }
+  if (!locationName || !locationName.trim()) {
+    return NODE_COORDINATES['Rampur'];
+  }
+  const cleanName = locationName.trim();
+  
+  // 1. Check direct or partial match in NODE_COORDINATES
+  for (const nodeName in NODE_COORDINATES) {
+    if (nodeName.toLowerCase() === cleanName.toLowerCase() || cleanName.toLowerCase().includes(nodeName.toLowerCase()) || nodeName.toLowerCase().includes(cleanName.toLowerCase())) {
+      return NODE_COORDINATES[nodeName];
+    }
+  }
+
+  // 2. Try forward geocoding via Nominatim API
+  const geocoded = await forwardGeocode(cleanName);
+  if (geocoded) {
+    registerDynamicVillage(cleanName, geocoded.latitude, geocoded.longitude);
+    return geocoded;
+  }
+
+  // 3. Fallback to Rampur base coordinates
+  return NODE_COORDINATES['Rampur'];
+}
+
+/**
  * Fetch real-world nearby hospitals, clinics, PHCs, CHCs, dispensaries and doctors from OpenStreetMap Overpass API
  */
 export async function fetchNearbyHospitalsOverpass(lat, lng) {
@@ -402,6 +432,15 @@ export async function getNearbyHospitalsAsync(lat, lng, villageName) {
       }
     });
   }
+
+  // Ensure dynamic health centers generated specifically for the target area/coordinate are included
+  const localFallbacks = generateDynamicFallbackHospitals(startLat, startLng, villageName);
+  localFallbacks.forEach(item => {
+    NODE_COORDINATES[item.name] = { latitude: item.latitude, longitude: item.longitude };
+    if (!combinedMap.has(item.name.toLowerCase())) {
+      combinedMap.set(item.name.toLowerCase(), item);
+    }
+  });
 
   // Calculate exact distances from user coordinates
   let results = Array.from(combinedMap.values()).map(hosp => {

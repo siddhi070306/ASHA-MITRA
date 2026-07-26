@@ -135,15 +135,15 @@ export default function HospitalsMap({ userCoords, userLocationName, setUserCoor
     fetchFacilities(false);
   }, [fetchFacilities]);
 
-  // Recenter map when manual override is deactivated
+  // Recenter map and refetch facilities whenever user location updates
   useEffect(() => {
-    if (!isLocationManual && mapInstanceRef.current && userCoords) {
-      mapInstanceRef.current.setView([userCoords.latitude, userCoords.longitude], 14);
+    if (mapInstanceRef.current && userCoords?.latitude && userCoords?.longitude) {
+      mapInstanceRef.current.setView([userCoords.latitude, userCoords.longitude], 13);
       setTimeout(() => {
         fetchFacilities(true);
       }, 300);
     }
-  }, [isLocationManual]);
+  }, [userCoords?.latitude, userCoords?.longitude, userLocationName, isLocationManual]);
 
   // 2. Initialize Leaflet Map Instance ONCE when map container mounts
   useEffect(() => {

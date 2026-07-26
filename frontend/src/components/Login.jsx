@@ -1,8 +1,197 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Phone, Lock, ArrowRight, Globe, ChevronDown, MapPin, Check, User } from 'lucide-react';
-import { reverseGeocode } from '../utils/hospitals';
+import { Activity, Phone, Lock, ArrowRight, Globe, ChevronDown, MapPin, Check, User, Navigation, Loader2 } from 'lucide-react';
+import { reverseGeocode, resolveLocationCoordinates } from '../utils/hospitals';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../config';
+
+function LocationInputWithDropdown({
+  label,
+  placeholder,
+  locationValue,
+  setLocationValue,
+  setCoords,
+  onFetchGps,
+  gpsLoading,
+  gpsSuccess,
+  gpsMsg
+}) {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef(null);
+  const wrapperRef = useRef(null);
+
+  const LOCAL_PRESETS = [
+    { name: 'Pimpri, Katni Sector', lat: 23.7800, lng: 80.3200, type: 'Sector' },
+    { name: 'Rampur, Katni Sector', lat: 23.8000, lng: 80.3500, type: 'Sector' },
+    { name: 'Katni City', lat: 23.8343, lng: 80.3892, type: 'District' },
+    { name: 'Piparia Rural Sector', lat: 23.8200, lng: 80.3700, type: 'Sector' },
+    { name: 'Vikas Nagar', lat: 23.8100, lng: 80.3600, type: 'Sector' },
+    { name: 'Jabalpur', lat: 23.1681, lng: 79.9338, type: 'City' },
+    { name: 'Bhopal', lat: 23.2599, lng: 77.4126, type: 'City' },
+    { name: 'Indore', lat: 22.7196, lng: 75.8577, type: 'City' },
+    { name: 'Pune', lat: 18.5204, lng: 73.8567, type: 'City' },
+    { name: 'Mumbai', lat: 19.0760, lng: 72.8777, type: 'City' },
+    { name: 'Delhi', lat: 28.6139, lng: 77.2090, type: 'Metro' },
+  ];
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setLocationValue(val);
+    setShowDropdown(true);
+
+    if (!val.trim()) {
+      setSuggestions(LOCAL_PRESETS);
+      setIsSearching(false);
+      return;
+    }
+
+    const filteredLocal = LOCAL_PRESETS.filter(item =>
+      item.name.toLowerCase().includes(val.toLowerCase())
+    );
+
+    setSuggestions(filteredLocal);
+
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (val.trim().length >= 2) {
+      setIsSearching(true);
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&addressdetails=1`, {
+            headers: {
+              'Accept-Language': 'en',
+              'User-Agent': 'ASHA-Saathi-Triage-Companion-Agent'
+            }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const apiResults = data.map(item => {
+              const addr = item.address || {};
+              const name = addr.village || addr.town || addr.suburb || addr.city_district || addr.city || item.display_name.split(',')[0];
+              return {
+                name: `${name} (${addr.state_district || addr.state || 'India'})`,
+                displayName: item.display_name,
+                lat: parseFloat(item.lat),
+                lng: parseFloat(item.lon),
+                type: item.type || 'Location'
+              };
+            });
+
+            setSuggestions(prev => {
+              const combined = [...filteredLocal];
+              apiResults.forEach(apiItem => {
+                if (!combined.some(c => c.name.toLowerCase() === apiItem.name.toLowerCase())) {
+                  combined.push(apiItem);
+                }
+              });
+              return combined;
+            });
+          }
+        } catch (err) {
+          console.warn("Location suggestion fetch error:", err);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 300);
+    }
+  };
+
+  const handleSelectSuggestion = (item) => {
+    setLocationValue(item.name);
+    setCoords({ latitude: item.lat, longitude: item.lng });
+    setShowDropdown(false);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">
+        {label}
+      </label>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input 
+            type="text"
+            value={locationValue}
+            onChange={handleInputChange}
+            onFocus={() => {
+              if (suggestions.length === 0) setSuggestions(LOCAL_PRESETS);
+              setShowDropdown(true);
+            }}
+            className="w-full min-h-[48px] pl-10 pr-4 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#E07A5F] focus:outline-none transition-colors placeholder:text-slate-300 font-medium text-[#0A2540]" 
+            placeholder={placeholder || "Type area, village or sector..."}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={onFetchGps}
+          disabled={gpsLoading}
+          className="px-3.5 py-2 min-h-[48px] rounded-xl bg-slate-100 hover:bg-[#0A2540] text-slate-700 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-colors border border-slate-200 shrink-0 cursor-pointer disabled:opacity-50"
+          title="Auto-detect current location"
+        >
+          {gpsLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-[#E07A5F]" />
+          ) : gpsSuccess ? (
+            <Check className="w-4 h-4 text-emerald-500" />
+          ) : (
+            <Navigation className="w-4 h-4 text-[#E07A5F]" />
+          )}
+          <span>{gpsLoading ? 'Fetching...' : 'Fetch Location'}</span>
+        </button>
+      </div>
+
+      {showDropdown && suggestions.length > 0 && (
+        <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden py-1 max-h-56 overflow-y-auto animate-fade-in">
+          {isSearching && (
+            <div className="px-4 py-2 text-xs text-slate-400 flex items-center gap-2 font-medium">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E07A5F]" />
+              Searching locations...
+            </div>
+          )}
+
+          {suggestions.map((item, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleSelectSuggestion(item)}
+              className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between border-b border-slate-100 last:border-none cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5 overflow-hidden pr-2">
+                <MapPin className="w-4 h-4 text-[#E07A5F] shrink-0" />
+                <div className="truncate">
+                  <span className="text-xs font-bold text-[#0A2540] block truncate">{item.name}</span>
+                  {item.displayName && (
+                    <span className="text-[10px] text-slate-400 block truncate">{item.displayName}</span>
+                  )}
+                </div>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 px-2 py-0.5 rounded-md bg-slate-100 shrink-0">
+                {item.type || 'Area'}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {gpsMsg && (
+        <p className={`mt-1.5 text-[11px] font-medium flex items-center gap-1 ${gpsSuccess ? 'text-emerald-600' : 'text-amber-600'}`}>
+          {gpsSuccess && <Check className="w-3 h-3" />}
+          {gpsMsg}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function Login({
   phone,
@@ -30,6 +219,52 @@ export default function Login({
   const [googleData, setGoogleData] = useState(null);
   const [googleCredential, setGoogleCredential] = useState('');
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsSuccess, setGpsSuccess] = useState(false);
+  const [gpsMsg, setGpsMsg] = useState('');
+
+  const handleFetchLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsMsg('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGpsLoading(true);
+    setGpsMsg('');
+    setGpsSuccess(false);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const coords = { latitude, longitude };
+        setRegCoords(coords);
+
+        try {
+          const areaName = await reverseGeocode(latitude, longitude);
+          if (areaName) {
+            setRegLocation(areaName);
+            setGpsMsg(`Located: ${areaName} (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`);
+          } else {
+            setRegLocation(`Sector (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`);
+            setGpsMsg(`Coords captured: ${latitude.toFixed(3)}, ${longitude.toFixed(3)}`);
+          }
+          setGpsSuccess(true);
+        } catch (err) {
+          setRegLocation(`Sector (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`);
+          setGpsMsg(`Coords captured: ${latitude.toFixed(3)}, ${longitude.toFixed(3)}`);
+          setGpsSuccess(true);
+        } finally {
+          setGpsLoading(false);
+        }
+      },
+      (err) => {
+        console.warn("Geolocation error:", err);
+        setGpsLoading(false);
+        setGpsMsg('Unable to retrieve GPS location automatically. Please enter manually.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
 
   const handleGoogleCredentialResponse = async (response) => {
     setRegError('');
@@ -65,6 +300,9 @@ export default function Login({
 
     setGoogleSubmitting(true);
     try {
+      const targetLoc = regLocation.trim() || 'Rampur';
+      const coords = await resolveLocationCoordinates(targetLoc, regCoords);
+
       const response = await fetch(`${API_BASE_URL}/api/auth/google/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,8 +311,8 @@ export default function Login({
           name: regName,
           phone: regPhone,
           role: regRole === 'ASHA Worker' ? 'ASHA Worker' : 'ANM Supervisor',
-          location: 'General Sector',
-          coordinates: { latitude: 18.5283, longitude: 73.8400 }
+          location: targetLoc,
+          coordinates: coords
         })
       });
       const data = await response.json();
@@ -127,13 +365,16 @@ export default function Login({
     }
     setRegLoading(true);
     try {
+      const targetLoc = regLocation.trim() || 'Rampur';
+      const coords = await resolveLocationCoordinates(targetLoc, regCoords);
+
       await handleRegister({
         name: regName,
         phone: regPhone,
         password: regPassword,
         role: regRole === 'ASHA Worker' ? 'ASHA Worker' : 'ANM Supervisor',
-        location: regLocation || 'General Sector',
-        coordinates: regCoords || { latitude: 18.5283, longitude: 73.8400 }
+        location: targetLoc,
+        coordinates: coords
       });
     } catch (err) {
       setRegError(err.message || 'Registration failed.');
@@ -272,6 +513,18 @@ export default function Login({
                   </select>
                 </div>
 
+                <LocationInputWithDropdown
+                  label={`${t('location')} / Sector`}
+                  placeholder="Type location, sector or village..."
+                  locationValue={regLocation}
+                  setLocationValue={setRegLocation}
+                  setCoords={setRegCoords}
+                  onFetchGps={handleFetchLocation}
+                  gpsLoading={gpsLoading}
+                  gpsSuccess={gpsSuccess}
+                  gpsMsg={gpsMsg}
+                />
+
 
 
                 <button 
@@ -302,10 +555,40 @@ export default function Login({
           ) : !isRegistering ? (
             /* SIGN IN VIEW */
             <>
-              <div className="mb-8 animate-fade-in">
+              <div className="mb-6 animate-fade-in">
                 <div className="text-xs tracking-[0.2em] uppercase text-[#E07A5F] font-bold mb-2">{t('welcome')}</div>
                 <h1 className="font-heading text-3xl font-extrabold text-[#0A2540]">{t('sign_in')}</h1>
                 <p className="text-slate-600 mt-2 text-sm">{t('sign_in_desc')}</p>
+
+                {/* Quick Auto-Location Fetch Option */}
+                <div className="mt-4 p-3 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="w-9 h-9 rounded-xl bg-[#E07A5F]/10 flex items-center justify-center text-[#E07A5F] shrink-0">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs truncate">
+                      <span className="font-bold text-slate-700 block text-[11px] uppercase tracking-wider">Current Location</span>
+                      <span className="text-slate-600 text-xs font-medium truncate block">
+                        {regLocation ? regLocation : gpsMsg ? gpsMsg : 'Tap to fetch auto-location'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleFetchLocation}
+                    disabled={gpsLoading}
+                    className="px-3 py-2 rounded-xl bg-white hover:bg-[#0A2540] text-[#0A2540] hover:text-white font-bold text-xs flex items-center gap-1.5 border border-slate-200 shadow-sm transition-all shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    {gpsLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#E07A5F]" />
+                    ) : gpsSuccess ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : (
+                      <Navigation className="w-3.5 h-3.5 text-[#E07A5F]" />
+                    )}
+                    <span>{gpsLoading ? 'Fetching...' : 'Fetch Location'}</span>
+                  </button>
+                </div>
               </div>
 
               {error && (
@@ -464,6 +747,18 @@ export default function Login({
                     <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
                   </select>
                 </div>
+
+                <LocationInputWithDropdown
+                  label={`${t('location')} / Sector`}
+                  placeholder="Type location, sector or village..."
+                  locationValue={regLocation}
+                  setLocationValue={setRegLocation}
+                  setCoords={setRegCoords}
+                  onFetchGps={handleFetchLocation}
+                  gpsLoading={gpsLoading}
+                  gpsSuccess={gpsSuccess}
+                  gpsMsg={gpsMsg}
+                />
 
 
 

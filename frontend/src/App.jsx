@@ -264,16 +264,15 @@ function App() {
         throw new Error(data.error || 'Registration failed');
       }
 
-      if (newUserData.coordinates) {
-        registerDynamicVillage(newUserData.location, newUserData.coordinates.latitude, newUserData.coordinates.longitude);
+      const registeredUser = data.user || newUserData;
+      if (registeredUser.coordinates) {
+        registerDynamicVillage(registeredUser.location, registeredUser.coordinates.latitude, registeredUser.coordinates.longitude);
+        updateLocation(registeredUser.coordinates, registeredUser.location, true);
       }
 
-      setUser(data.user);
+      setUser(registeredUser);
       localStorage.setItem('token', data.token);
-      localStorage.setItem('asha_user', JSON.stringify(data.user));
-      if (data.user.coordinates) {
-        setUserCoords(data.user.coordinates);
-      }
+      localStorage.setItem('asha_user', JSON.stringify(registeredUser));
       showToast('Account registered successfully!');
     } catch (err) {
       // Offline / local fallback
@@ -282,8 +281,9 @@ function App() {
         ...newUserData
       };
 
-      if (newUserData.coordinates) {
-        registerDynamicVillage(newUserData.location, newUserData.coordinates.latitude, newUserData.coordinates.longitude);
+      if (newUser.coordinates) {
+        registerDynamicVillage(newUser.location, newUser.coordinates.latitude, newUser.coordinates.longitude);
+        updateLocation(newUser.coordinates, newUser.location, true);
       }
 
       setRegisteredUsers(prev => {
@@ -295,9 +295,6 @@ function App() {
       setUser(newUser);
       localStorage.setItem('token', 'offline-token-' + newUser.id);
       localStorage.setItem('asha_user', JSON.stringify(newUser));
-      if (newUser.coordinates) {
-        setUserCoords(newUser.coordinates);
-      }
       showToast('Account created (Local Mode)');
     } finally {
       setLoading(false);
@@ -338,7 +335,8 @@ function App() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('asha_user', JSON.stringify(data.user));
       if (data.user.coordinates) {
-        setUserCoords(data.user.coordinates);
+        registerDynamicVillage(data.user.location, data.user.coordinates.latitude, data.user.coordinates.longitude);
+        updateLocation(data.user.coordinates, data.user.location, true);
       }
       showToast('Logged in successfully!');
     } catch (err) {
@@ -349,7 +347,8 @@ function App() {
         localStorage.setItem('token', 'offline-token-' + foundUser.id);
         localStorage.setItem('asha_user', JSON.stringify(foundUser));
         if (foundUser.coordinates) {
-          setUserCoords(foundUser.coordinates);
+          registerDynamicVillage(foundUser.location, foundUser.coordinates.latitude, foundUser.coordinates.longitude);
+          updateLocation(foundUser.coordinates, foundUser.location, true);
         }
         showToast('Logged in successfully!');
       } else {
@@ -365,7 +364,8 @@ function App() {
     localStorage.setItem('token', token);
     localStorage.setItem('asha_user', JSON.stringify(userData));
     if (userData.coordinates) {
-      setUserCoords(userData.coordinates);
+      registerDynamicVillage(userData.location, userData.coordinates.latitude, userData.coordinates.longitude);
+      updateLocation(userData.coordinates, userData.location, true);
     }
     showToast('Logged in successfully via Google!');
   };

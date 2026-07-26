@@ -24,5 +24,17 @@
       "latitude": 18.7425866,
       "longitude": 73.6366603
     }
+  },
+  {
+    "id": 1785089705858,
+    "name": "aaaaaaa",
+    "phone": "1236547890",
+    "password": "000000",
+    "role": "ASHA Worker",
+    "location": "Pimpri (Pune District)",
+    "coordinates": {
+      "latitude": 18.6231854,
+      "longitude": 73.8019932
+    }
   }
 ]
