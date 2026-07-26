@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, Phone, Lock, ArrowRight, Globe, ChevronDown, MapPin, Check, User } from 'lucide-react';
 import { reverseGeocode } from '../utils/hospitals';
 import { useLanguage } from '../context/LanguageContext';
+import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../config';
 
 export default function Login({
   phone,
@@ -11,7 +12,8 @@ export default function Login({
   loading,
   error,
   handleLogin,
-  handleRegister
+  handleRegister,
+  handleGoogleLoginSuccess
 }) {
   const { language, setLanguage, t } = useLanguage();
 
@@ -25,6 +27,126 @@ export default function Login({
   const [gpsLoading, setGpsLoading] = useState(false);
   const [regError, setRegError] = useState('');
   const [regLoading, setRegLoading] = useState(false);
+
+  const [isGoogleCompleting, setIsGoogleCompleting] = useState(false);
+  const [googleData, setGoogleData] = useState(null);
+  const [googleCredential, setGoogleCredential] = useState('');
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+
+  const handleGoogleCredentialResponse = async (response) => {
+    setRegError('');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: response.credential })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Google sign-in verification failed.');
+      }
+
+      if (data.isNewUser) {
+        setGoogleData(data.googleData);
+        setRegName(data.googleData.name || '');
+        setIsGoogleCompleting(true);
+        setGoogleCredential(response.credential);
+      } else {
+        handleGoogleLoginSuccess(data.user, data.token);
+      }
+    } catch (err) {
+      console.error("Google Auth error:", err);
+      setRegError(err.message || 'Google Auth verification failed.');
+    }
+  };
+
+  const handleGoogleRegSubmit = async (e) => {
+    e.preventDefault();
+    setRegError('');
+    
+    if (!regName || !regPhone || !regLocation) {
+      setRegError('Please fill out all required fields.');
+      return;
+    }
+
+    setGoogleSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/google/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          idToken: googleCredential,
+          name: regName,
+          phone: regPhone,
+          role: regRole === 'ASHA Worker' ? 'ASHA Worker' : 'ANM Supervisor',
+          location: regLocation,
+          coordinates: regCoords
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Google registration completion failed.');
+      }
+
+      handleGoogleLoginSuccess(data.user, data.token);
+    } catch (err) {
+      console.error("Google Registration error:", err);
+      setRegError(err.message || 'Google registration completion failed.');
+    } finally {
+      setGoogleSubmitting(false);
+    }
+  };
+
+  const handleCancelGoogleCompletion = () => {
+    setIsGoogleCompleting(false);
+    setGoogleData(null);
+    setGoogleCredential('');
+    setRegError('');
+  };
+
+  // Initialize and render Google One Tap / Sign-In Button
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) {
+      console.warn("Google Client ID is not configured in .env");
+      return;
+    }
+
+    const initializeGoogle = () => {
+      if (window.google) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+        });
+
+        if (!isGoogleCompleting && !isRegistering) {
+          const container = document.getElementById("google-signin-btn");
+          if (container) {
+            window.google.accounts.id.renderButton(container, {
+              theme: "outline",
+              size: "large",
+              width: "380",
+              text: "continue_with",
+              shape: "rectangular"
+            });
+          }
+        }
+      }
+    };
+
+    initializeGoogle();
+
+    // Check again in case it loads asynchronously
+    const interval = setInterval(() => {
+      if (window.google) {
+        initializeGoogle();
+        clearInterval(interval);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isRegistering, isGoogleCompleting]);
 
   const handleFetchGPS = () => {
     setGpsLoading(true);
@@ -138,10 +260,150 @@ export default function Login({
             </div>
           </div>
           
-          {!isRegistering ? (
+          {isGoogleCompleting ? (
+            /* GOOGLE PROFILE COMPLETION VIEW */
+            <>
+              <div className="mb-6 animate-fade-in">
+                <div className="text-xs tracking-[0.2em] uppercase text-[#E07A5F] font-bold mb-2">{t('google_register_title')}</div>
+                <div className="flex items-center gap-3 mb-4 p-3 bg-[#0A2540] text-white rounded-2xl border border-white/10 shadow-md">
+                  {googleData?.picture && (
+                    <img 
+                      src={googleData.picture} 
+                      alt="Google User" 
+                      className="w-10 h-10 rounded-full border border-white/20"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <div className="overflow-hidden">
+                    <div className="font-bold text-sm truncate">{googleData?.name}</div>
+                    <div className="text-[10px] text-white/70 truncate">{googleData?.email}</div>
+                  </div>
+                </div>
+                <p className="text-slate-600 text-xs">{t('google_register_desc')}</p>
+              </div>
+
+              {regError && (
+                <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium">
+                  {regError}
+                </div>
+              )}
+
+              <form className="space-y-4" onSubmit={handleGoogleRegSubmit}>
+                <div>
+                  <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('full_name')}</label>
+                  <div className="relative">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="text"
+                      required
+                      value={regName}
+                      onChange={(e) => setRegName(e.target.value)}
+                      className="w-full min-h-[48px] pl-10 pr-4 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#E07A5F] focus:outline-none transition-colors placeholder:text-slate-300 font-medium text-[#0A2540]" 
+                      placeholder={t('full_name_placeholder')}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('phone_number')}</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <input 
+                      type="tel"
+                      required
+                      value={regPhone}
+                      onChange={(e) => setRegPhone(e.target.value)}
+                      className="w-full min-h-[48px] pl-10 pr-4 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#E07A5F] focus:outline-none transition-colors placeholder:text-slate-300 font-medium text-[#0A2540]" 
+                      placeholder="e.g. 9876543210"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('select_role')}</label>
+                    <select
+                      value={regRole}
+                      onChange={(e) => setRegRole(e.target.value)}
+                      className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none cursor-pointer"
+                    >
+                      <option value="ASHA Worker">{t('asha_label')}</option>
+                      <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold tracking-wider uppercase text-slate-500 block mb-1">{t('village')}</label>
+                    <input 
+                      type="text"
+                      required
+                      value={regLocation}
+                      onChange={(e) => setRegLocation(e.target.value)}
+                      className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm focus:border-[#E07A5F] focus:outline-none transition-colors placeholder:text-slate-300 font-medium text-[#0A2540]" 
+                      placeholder={t('village_placeholder')}
+                    />
+                  </div>
+                </div>
+
+                {/* GPS LOCK BLOCK */}
+                <div className="pt-2">
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5 font-bold">Real-time Location Anchor</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleFetchGPS}
+                      disabled={gpsLoading}
+                      className={`flex-grow min-h-[44px] rounded-xl font-bold text-xs flex items-center justify-center gap-2 border shadow-sm transition-all ${
+                        regCoords 
+                          ? 'bg-green-50 border-green-200 text-green-700' 
+                          : 'bg-white hover:bg-slate-50 border-slate-200 text-[#0A2540]'
+                      }`}
+                    >
+                      {gpsLoading ? (
+                        <div className="w-4 h-4 border-2 border-[#0A2540] border-t-transparent rounded-full animate-spin"></div>
+                      ) : regCoords ? (
+                        <Check className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <MapPin className="w-4 h-4 text-[#E07A5F]" />
+                      )}
+                      {gpsLoading ? t('gps_fetching') : regCoords ? t('gps_success') : t('fetch_gps')}
+                    </button>
+                  </div>
+                  {regCoords && (
+                    <div className="mt-1.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-mono text-slate-500 text-center">
+                      Locked: Lat {regCoords.latitude.toFixed(4)}, Lng {regCoords.longitude.toFixed(4)}
+                    </div>
+                  )}
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={googleSubmitting}
+                  className="w-full min-h-[50px] mt-4 rounded-2xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-bold text-sm shadow-soft flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
+                >
+                  {googleSubmitting ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <>
+                      {t('complete_registration')}
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+              
+              <div className="mt-4 text-xs text-slate-500 text-center">
+                <button 
+                  onClick={handleCancelGoogleCompletion} 
+                  className="text-[#E07A5F] font-semibold hover:underline bg-transparent border-none cursor-pointer"
+                >
+                  {t('back_to_login')}
+                </button>
+              </div>
+            </>
+          ) : !isRegistering ? (
             /* SIGN IN VIEW */
             <>
-              <div className="mb-8">
+              <div className="mb-8 animate-fade-in">
                 <div className="text-xs tracking-[0.2em] uppercase text-[#E07A5F] font-bold mb-2">{t('welcome')}</div>
                 <h1 className="font-heading text-3xl font-extrabold text-[#0A2540]">{t('sign_in')}</h1>
                 <p className="text-slate-600 mt-2 text-sm">{t('sign_in_desc')}</p>
@@ -201,6 +463,25 @@ export default function Login({
                   )}
                 </button>
               </form>
+
+              {GOOGLE_CLIENT_ID ? (
+                <>
+                  <div className="relative flex py-4 items-center">
+                    <div className="flex-grow border-t border-slate-200"></div>
+                    <span className="flex-shrink mx-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('or')}</span>
+                    <div className="flex-grow border-t border-slate-200"></div>
+                  </div>
+                  
+                  <div className="w-full flex justify-center min-h-[46px]">
+                    <div id="google-signin-btn" className="w-full max-w-[380px] shadow-sm hover:shadow transition-shadow rounded-md overflow-hidden"></div>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                  <span className="text-[10px] font-bold text-amber-700 block uppercase tracking-wider">Google Login Deactivated</span>
+                  <span className="text-[10px] text-amber-600 block mt-0.5">Please check backend and frontend configurations.</span>
+                </div>
+              )}
               
               <div className="mt-8 pt-6 border-t border-slate-100 text-sm text-slate-600 text-center">
                 {t('register_link').split('?')[0]}?{' '}
@@ -215,7 +496,7 @@ export default function Login({
           ) : (
             /* REGISTER VIEW */
             <>
-              <div className="mb-6">
+              <div className="mb-6 animate-fade-in">
                 <div className="text-xs tracking-[0.2em] uppercase text-[#E07A5F] font-bold mb-2">{t('register_title')}</div>
                 <h1 className="font-heading text-2xl font-extrabold text-[#0A2540]">ASHA / ANM Registration</h1>
                 <p className="text-slate-600 mt-1 text-sm">{t('register_desc')}</p>
@@ -300,7 +581,7 @@ export default function Login({
 
                 {/* GPS LOCK BLOCK */}
                 <div className="pt-2">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">Real-time Location Anchor</span>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5 font-bold">Real-time Location Anchor</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"

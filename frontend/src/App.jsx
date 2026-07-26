@@ -293,6 +293,16 @@ function App() {
     }
   };
 
+  const handleGoogleLoginSuccess = (userData, token) => {
+    setUser(userData);
+    localStorage.setItem('token', token);
+    localStorage.setItem('asha_user', JSON.stringify(userData));
+    if (userData.coordinates) {
+      setUserCoords(userData.coordinates);
+    }
+    showToast('Logged in successfully via Google!');
+  };
+
   const handleLogout = () => {
     setUser(null);
     setPhone('');
@@ -426,6 +436,7 @@ function App() {
         selectedLanguage={selectedLanguage}
         setSelectedLanguage={setSelectedLanguage}
         handleRegister={handleRegister}
+        handleGoogleLoginSuccess={handleGoogleLoginSuccess}
       />
     );
   }

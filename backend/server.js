@@ -53,6 +53,246 @@ function saveJsonUsers(users) {
   }
 }
 
+// Google OAuth Token Verification Helper
+async function verifyGoogleToken(idToken) {
+  try {
+    const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`;
+    
+    const response = await fetch(verifyUrl);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Google token verification HTTP error:', response.status, errText);
+      return null;
+    }
+    
+    const payload = await response.json();
+    
+    // Perform safety checks
+    // 1. Check issuer
+    if (payload.iss !== 'accounts.google.com' && payload.iss !== 'https://accounts.google.com') {
+      console.error('Google token verification failed: Invalid issuer', payload.iss);
+      return null;
+    }
+    
+    // 2. Check audience (Client ID)
+    if (GOOGLE_CLIENT_ID && payload.aud !== GOOGLE_CLIENT_ID) {
+      console.error('Google token verification failed: Audience mismatch. Expected:', GOOGLE_CLIENT_ID, 'Got:', payload.aud);
+      return null;
+    }
+    
+    // 3. Check expiration
+    const now = Math.floor(Date.now() / 1000);
+    if (payload.exp < now) {
+      console.error('Google token verification failed: Token expired. Expired at:', payload.exp, 'Current time:', now);
+      return null;
+    }
+    
+    return {
+      googleId: payload.sub,
+      email: payload.email,
+      name: payload.name,
+      picture: payload.picture
+    };
+  } catch (err) {
+    console.error('Error during Google token verification:', err);
+    return null;
+  }
+}
+
+// POST /api/auth/google - Authenticate with Google
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { idToken } = req.body;
+    if (!idToken) {
+      return res.status(400).json({ error: 'Google ID token is required.' });
+    }
+
+    const googleUser = await verifyGoogleToken(idToken);
+    if (!googleUser) {
+      return res.status(401).json({ error: 'Invalid Google authentication.' });
+    }
+
+    const { googleId, email, name, picture } = googleUser;
+
+    if (isMongoConnected) {
+      // Find user by googleId or by email
+      let user = await User.findOne({
+        $or: [{ googleId }, { email }]
+      });
+
+      if (user) {
+        // If found but doesn't have googleId linked yet (e.g. was password registered with same email)
+        if (!user.googleId) {
+          user.googleId = googleId;
+          await user.save();
+        }
+
+        const token = jwt.sign(
+          { id: user._id, phone: user.phone, role: user.role },
+          SECRET_KEY,
+          { expiresIn: '30d' }
+        );
+
+        const userObj = user.toObject();
+        delete userObj.password;
+
+        return res.json({
+          message: 'Google login successful (MongoDB)',
+          token,
+          user: { ...userObj, id: userObj._id }
+        });
+      }
+
+      // User not found in MongoDB -> return info to complete registration on frontend
+      return res.json({
+        isNewUser: true,
+        googleData: { googleId, email, name, picture }
+      });
+    }
+
+    // JSON Fallback mode
+    const users = getJsonUsers();
+    let user = users.find(u => u.googleId === googleId || (u.email && u.email.toLowerCase() === email.toLowerCase()));
+
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = googleId;
+        saveJsonUsers(users);
+      }
+
+      const token = jwt.sign(
+        { id: user.id, phone: user.phone, role: user.role },
+        SECRET_KEY,
+        { expiresIn: '30d' }
+      );
+
+      const { password: _, ...userProfile } = user;
+      return res.json({
+        message: 'Google login successful (JSON Fallback)',
+        token,
+        user: userProfile
+      });
+    }
+
+    // User not found in JSON File -> return info to complete registration on frontend
+    return res.json({
+      isNewUser: true,
+      googleData: { googleId, email, name, picture }
+    });
+  } catch (error) {
+    console.error('Google Auth Error:', error);
+    res.status(500).json({ error: 'Server Google authentication error' });
+  }
+});
+
+// POST /api/auth/google/register - Complete Registration with Google Auth
+app.post('/api/auth/google/register', async (req, res) => {
+  try {
+    const { idToken, name, phone, role, location, coordinates } = req.body;
+
+    if (!idToken || !name || !phone || !location) {
+      return res.status(400).json({ error: 'ID Token, Name, phone, and location are required.' });
+    }
+
+    const googleUser = await verifyGoogleToken(idToken);
+    if (!googleUser) {
+      return res.status(401).json({ error: 'Invalid Google authentication token.' });
+    }
+
+    const { googleId, email } = googleUser;
+
+    if (isMongoConnected) {
+      // Ensure phone number isn't already taken
+      const existingPhoneUser = await User.findOne({ phone });
+      if (existingPhoneUser) {
+        return res.status(409).json({ error: 'A user with this phone number is already registered.' });
+      }
+
+      // Ensure googleId or email isn't already registered
+      const existingGoogleUser = await User.findOne({
+        $or: [{ googleId }, { email }]
+      });
+      if (existingGoogleUser) {
+        return res.status(409).json({ error: 'This Google account is already registered.' });
+      }
+
+      const geoCoord = coordinates 
+        ? [coordinates.longitude || 80.3500, coordinates.latitude || 23.8000]
+        : [80.3500, 23.8000];
+
+      const newUser = new User({
+        name,
+        phone,
+        googleId,
+        email,
+        role: role || 'ASHA Worker',
+        location,
+        coordinates,
+        geoLocation: {
+          type: 'Point',
+          coordinates: geoCoord
+        }
+      });
+
+      await newUser.save();
+
+      const token = jwt.sign(
+        { id: newUser._id, phone: newUser.phone, role: newUser.role },
+        SECRET_KEY,
+        { expiresIn: '30d' }
+      );
+
+      const userObj = newUser.toObject();
+      delete userObj.password;
+
+      return res.status(201).json({
+        message: 'Google user registered in MongoDB',
+        token,
+        user: { ...userObj, id: userObj._id }
+      });
+    }
+
+    // JSON Fallback Mode
+    const users = getJsonUsers();
+    if (users.find(u => u.phone === phone)) {
+      return res.status(409).json({ error: 'A user with this phone number is already registered.' });
+    }
+    if (users.find(u => u.googleId === googleId || (u.email && u.email.toLowerCase() === email.toLowerCase()))) {
+      return res.status(409).json({ error: 'This Google account is already registered.' });
+    }
+
+    const newUser = {
+      id: Date.now(),
+      name,
+      phone,
+      googleId,
+      email,
+      role: role || 'ASHA Worker',
+      location,
+      coordinates
+    };
+
+    users.push(newUser);
+    saveJsonUsers(users);
+
+    const token = jwt.sign(
+      { id: newUser.id, phone: newUser.phone, role: newUser.role },
+      SECRET_KEY,
+      { expiresIn: '30d' }
+    );
+
+    return res.status(201).json({
+      message: 'Google user registered (JSON Fallback)',
+      token,
+      user: newUser
+    });
+  } catch (error) {
+    console.error('Google Registration Error:', error);
+    res.status(500).json({ error: 'Server Google registration error' });
+  }
+});
+
 // POST /api/auth/register - Register User
 app.post('/api/auth/register', async (req, res) => {
   try {

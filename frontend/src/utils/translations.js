@@ -35,6 +35,11 @@ export const translations = {
     speak_triage_save: "Speak. Triage. Save lives.",
     hero_desc: "AI-powered voice triage in 12 Indian languages — built for ASHA workers in rural India. Works offline, syncs when online.",
     copyright: "© ASHA Saathi · Anchored on Polygon",
+    or: "OR",
+    continue_with_google: "Continue with Google",
+    google_register_title: "Complete Google Registration",
+    google_register_desc: "Please provide the remaining details to set up your ASHA Mitra account.",
+    complete_registration: "Complete Registration",
 
     // Dashboard
     namaste: "Namaste",
@@ -227,6 +232,11 @@ export const translations = {
     speak_triage_save: "बोलें। ट्राइएज करें। जीवन बचाएं।",
     hero_desc: "12 भारतीय भाषाओं में एआई-संचालित वॉयस ट्राइएज — ग्रामीण भारत में आशा कार्यकर्ताओं के लिए बनाया गया। ऑफलाइन काम करता है, ऑनलाइन होने पर सिंक होता है।",
     copyright: "© आशा साथी · पॉलीगॉन पर आधारित",
+    or: "या",
+    continue_with_google: "गूगल के साथ जारी रखें",
+    google_register_title: "गूगल पंजीकरण पूरा करें",
+    google_register_desc: "कृपया अपना आशा मित्र खाता सेट करने के लिए शेष विवरण प्रदान करें।",
+    complete_registration: "पंजीकरण पूरा करें",
 
     // Dashboard
     namaste: "नमस्ते",
@@ -419,6 +429,11 @@ export const translations = {
     speak_triage_save: "बोला. ट्रायेज करा. जीव वाचवा.",
     hero_desc: "१२ भारतीय भाषांमध्ये एआय-चालित व्हॉइस ट्रायेज — ग्रामीण भारतातील आशा कार्यकर्त्यांसाठी तयार केलेले. ऑफलाइन काम करते, ऑनलाइन असताना सिंक होते.",
     copyright: "© आशा साथी · पॉलीगॉनवर आधारित",
+    or: "किंवा",
+    continue_with_google: "गूगल सह सुरू ठेवा",
+    google_register_title: "गूगल नोंदणी पूर्ण करा",
+    google_register_desc: "कृपया आपले आशा मित्र खाते सेट करण्यासाठी उर्वरित तपशील प्रदान करा.",
+    complete_registration: "नोंदणी पूर्ण करा",
 
     // Dashboard
     namaste: "नमस्ते",
