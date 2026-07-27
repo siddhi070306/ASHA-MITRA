@@ -2,7 +2,7 @@
 
 ## Overview
 
-ASHA Mitra is an AI-powered, offline-first Progressive Web Application (PWA) built to empower ASHA (Accredited Social Health Activist) workers in rural India with instant clinical decision support. It acts as an intelligent digital companion that enables healthcare workers to assess patient conditions using voice, classify medical urgency, generate digital referrals, and securely verify records using blockchain technology.
+ASHA Mitra is an AI-powered,platform built to empower ASHA (Accredited Social Health Activist) workers in rural India with instant clinical decision support. It acts as an intelligent digital companion that enables healthcare workers to assess patient conditions using voice, classify medical urgency, generate digital referrals, and securely verify records using blockchain technology.
 
 The platform addresses challenges such as poor connectivity, language barriers, paper-based record management, and lack of structured triage systems in rural healthcare.
 
