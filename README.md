@@ -40,8 +40,6 @@ The application enables ASHA workers to:
 - Generate digital referral slips
 - Securely store patient records
 - Verify assessments using blockchain
-- Continue working without internet connectivity
-
 ---
 
 # Features
@@ -96,16 +94,6 @@ The application analyzes symptoms and classifies patient urgency into three cate
 - Triage priority included
 - One-tap WhatsApp sharing
 - Hospital-ready referral document
-
----
-
-## Offline-First Architecture
-
-- Works without internet
-- Local data storage
-- Offline AI inference
-- Synchronizes automatically once internet is available
-- Progressive Web App (PWA)
 
 ---
 
@@ -204,7 +192,7 @@ Features include:
 
 ## Database
 
-- PostgreSQL
+- MongoDB
 ---
 
 ## Blockchain
@@ -212,16 +200,6 @@ Features include:
 - Polygon
 - SHA-256 Hashing
 - Immutable Verification
-
----
-
-## Tools
-
-- Prisma ORM
-- Postman
-- Git
-- GitHub
-- VS Code
 
 ---
 
