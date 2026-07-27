@@ -27,7 +27,8 @@ mongoose.connect(MONGODB_URI, {
   serverSelectionTimeoutMS: 3000
 }).then(() => {
   isMongoConnected = true;
-  console.log('✅ Connected to MongoDB database:', MONGODB_URI);
+  const maskedUri = MONGODB_URI.replace(/\/\/(.*):(.*)@/, '//***:***@');
+  console.log('✅ Connected to MongoDB database:', maskedUri);
 }).catch(err => {
   isMongoConnected = false;
   console.warn('⚠️ MongoDB connection not active, operating with local JSON storage fallback.');
