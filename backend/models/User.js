@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['ASHA Worker', 'ANM Supervisor', 'Admin'],
+    enum: ['ASHA Worker', 'Doctor'],
     default: 'ASHA Worker'
   },
   location: {
