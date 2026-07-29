@@ -195,7 +195,20 @@ export const translations = {
     view_log: "View Log",
     polygon_explorer: "Polygonscan Verification Explorer",
     secured: "Secured",
-    blockchain_details: "Blockchain Transaction Details"
+    blockchain_details: "Blockchain Transaction Details",
+    doctor_dashboard_title: "Doctor's Verification Dashboard",
+    doctor_workspace_title: "Medical Officer Workspace",
+    pending_doctor_verification: "Pending Doctor Verification",
+    verified_by_doctor: "Verified by Doctor",
+    doctor_notes_title: "Doctor's Note & Medical Advice",
+    verify_and_send: "Verify & Send Message to ASHA Worker",
+    doctor_message_placeholder: "Type direct instructions or medication guidance for the ASHA worker...",
+    sent_to_doctor_notice: "Triage assessment submitted! Sent to Doctor Dashboard for verification. ASHA work continues uninterrupted.",
+    doctor_verified_banner: "Doctor Verified Triage",
+    doctor_message_label: "Doctor's Direct Instructions to ASHA",
+    verify_triage_action: "Verify Triage Record",
+    confirm_triage_btn: "Confirm & Send Message",
+    doctor_role: "Doctor / Medical Officer"
   },
   hi: {
     // Navigation
@@ -393,7 +406,20 @@ export const translations = {
     view_log: "लॉग देखें",
     polygon_explorer: "पॉलीगॉनस्कैन सत्यापन एक्सप्लोरर",
     secured: "सुरक्षित",
-    blockchain_details: "ब्लॉकचेन लेनदेन विवरण"
+    blockchain_details: "ब्लॉकचेन लेनदेन विवरण",
+    doctor_dashboard_title: "डॉक्टर सत्यापन डैशबोर्ड",
+    doctor_workspace_title: "चिकित्सा अधिकारी कार्यक्षेत्र",
+    pending_doctor_verification: "डॉक्टर सत्यापन लंबित",
+    verified_by_doctor: "डॉक्टर द्वारा सत्यापित",
+    doctor_notes_title: "डॉक्टर का संदेश और चिकित्सा सलाह",
+    verify_and_send: "सत्यापित करें और आशा कार्यकर्ता को संदेश भेजें",
+    doctor_message_placeholder: "आशा कार्यकर्ता के लिए प्रत्यक्ष निर्देश या दवा का मार्गदर्शन लिखें...",
+    sent_to_doctor_notice: "ट्राइएज मूल्यांकन सबमिट किया गया! डॉक्टर डैशबोर्ड को भेजा गया। आशा कार्यकर्ता का काम बिना रुकावट जारी रहेगा।",
+    doctor_verified_banner: "डॉक्टर द्वारा सत्यापित ट्राइएज",
+    doctor_message_label: "आशा कार्यकर्ता को डॉक्टर के प्रत्यक्ष निर्देश",
+    verify_triage_action: "ट्राइएज रिकॉर्ड सत्यापित करें",
+    confirm_triage_btn: "पुष्टि करें और संदेश भेजें",
+    doctor_role: "डॉक्टर / चिकित्सा अधिकारी"
   },
   mr: {
     // Navigation
@@ -591,6 +617,19 @@ export const translations = {
     view_log: "लॉग पहा",
     polygon_explorer: "पॉलीगॉनस्कैन पडताळणी एक्सप्लोरर",
     secured: "सुरक्षित",
-    blockchain_details: "ब्लॉकचेन व्यवहार तपशील"
+    blockchain_details: "ब्लॉकचेन व्यवहार तपशील",
+    doctor_dashboard_title: "डॉक्टर पडताळणी डॅशबोर्ड",
+    doctor_workspace_title: "वैद्यकीय अधिकारी कार्यक्षेत्र",
+    pending_doctor_verification: "डॉक्टर पडताळणी प्रलंबित",
+    verified_by_doctor: "डॉक्टरद्वारे पडताळलेले",
+    doctor_notes_title: "डॉक्टरांचा संदेश व वैद्यकीय सल्ला",
+    verify_and_send: "पडताळणी करा आणि आशा वर्करला संदेश पाठवा",
+    doctor_message_placeholder: "आशा वर्करसाठी थेट सूचना किंवा औषधांचे मार्गदर्शन लिहा...",
+    sent_to_doctor_notice: "ट्रायज मूल्यांकन सबमिट केले! डॉक्टर डॅशबोर्डवर पडताळणीसाठी पाठवले. आशा वर्करचे काम न थांबता सुरू राहील.",
+    doctor_verified_banner: "डॉक्टरद्वारे पडताळलेली ट्रायज",
+    doctor_message_label: "आशा वर्करसाठी डॉक्टरांच्या थेट सूचना",
+    verify_triage_action: "ट्रायज रेकॉर्ड पडताळा",
+    confirm_triage_btn: "खात्री करा आणि संदेश पाठवा",
+    doctor_role: "डॉक्टर / वैद्यकीय अधिकारी"
   }
 };

@@ -47,43 +47,60 @@ export default function History({
                 <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black uppercase tracking-wider text-slate-400">
                   <th className="px-6 py-4">{t('patient_name_col')}</th>
                   <th className="px-6 py-4">{t('urgency_level_col')}</th>
+                  <th className="px-6 py-4">Doctor Verification</th>
                   <th className="px-6 py-4">{t('language_spoken_col')}</th>
                   <th className="px-6 py-4">{t('date_time_col')}</th>
                   <th className="px-6 py-4 text-right">{t('action_col')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredHistory.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <span className="font-bold text-[#0A2540] block">{item.patientName}</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">{item.patientDetails}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        item.urgency === 'Red' 
-                          ? 'bg-red-100 text-red-800' 
-                          : item.urgency === 'Yellow'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {(item.urgency === 'Red' ? t('red') : item.urgency === 'Yellow' ? t('yellow') : t('green'))} {t('alert_suffix')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-semibold text-slate-600">
-                      {item.language === 'Hindi' ? t('hi').split(' · ')[0] : item.language === 'Marathi' ? t('mr').split(' · ')[0] : item.language === 'English' ? t('en').split(' · ')[0] : item.language}
-                    </td>
-                    <td className="px-6 py-4 text-xs font-semibold text-slate-500">{item.date}</td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => setSelectedHistoryItem(item)}
-                        className="px-3.5 py-1.5 bg-[#0A2540] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors"
-                      >
-                        {t('view_details')}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredHistory.map((item) => {
+                  const isVerified = item.doctorVerificationStatus === 'verified' || item.doctorVerificationStatus === 'modified';
+                  const currentUrgency = item.doctorUrgency || item.urgency;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-[#0A2540] block">{item.patientName}</span>
+                        <span className="text-[10px] text-slate-500 font-semibold">{item.patientDetails}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                          currentUrgency === 'Red' 
+                            ? 'bg-red-100 text-red-800' 
+                            : currentUrgency === 'Yellow'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {(currentUrgency === 'Red' ? t('red') : currentUrgency === 'Yellow' ? t('yellow') : t('green'))} {t('alert_suffix')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {isVerified ? (
+                          <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-lg text-[10px] font-bold border border-green-200">
+                            ✓ Verified by {item.verifiedBy || 'Doctor'}
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-lg text-[10px] font-bold border border-amber-200 animate-pulse">
+                            ⏳ Doctor Pending
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-600">
+                        {item.language === 'Hindi' ? t('hi').split(' · ')[0] : item.language === 'Marathi' ? t('mr').split(' · ')[0] : item.language === 'English' ? t('en').split(' · ')[0] : item.language}
+                      </td>
+                      <td className="px-6 py-4 text-xs font-semibold text-slate-500">{item.date}</td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => setSelectedHistoryItem(item)}
+                          className="px-3.5 py-1.5 bg-[#0A2540] hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors"
+                        >
+                          {t('view_details')}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

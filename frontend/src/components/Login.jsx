@@ -310,7 +310,7 @@ export default function Login({
           idToken: googleCredential,
           name: regName,
           phone: regPhone,
-          role: regRole === 'ASHA Worker' ? 'ASHA Worker' : 'ANM Supervisor',
+          role: regRole || 'ASHA Worker',
           location: targetLoc,
           coordinates: coords
         })
@@ -508,8 +508,8 @@ export default function Login({
                     onChange={(e) => setRegRole(e.target.value)}
                     className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none cursor-pointer"
                   >
-                    <option value="ASHA Worker">{t('asha_label')}</option>
-                    <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
+                    <option value="ASHA Worker">ASHA Worker (आशा कार्यकर्ता)</option>
+                    <option value="Doctor">Doctor / Medical Officer (डॉक्टर)</option>
                   </select>
                 </div>
 
@@ -743,8 +743,8 @@ export default function Login({
                     onChange={(e) => setRegRole(e.target.value)}
                     className="w-full min-h-[48px] px-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none cursor-pointer"
                   >
-                    <option value="ASHA Worker">{t('asha_label')}</option>
-                    <option value="ANM Supervisor">{t('supervisor_workspace_title')}</option>
+                    <option value="ASHA Worker">ASHA Worker (आशा कार्यकर्ता)</option>
+                    <option value="Doctor">Doctor / Medical Officer (डॉक्टर)</option>
                   </select>
                 </div>
 

@@ -512,6 +512,10 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
         keywords,
         symptoms: editableSymptoms.length > 0 ? editableSymptoms : symptoms,
         advice,
+        doctorVerificationStatus: 'pending',
+        doctorUrgency: urgency,
+        doctorSymptoms: editableSymptoms.length > 0 ? editableSymptoms : symptoms,
+        doctorMessage: '',
         // Blockchain anchoring details
         txHash: tx,
         blockNumber: block,
