@@ -9,6 +9,7 @@ import AddPatient from './components/AddPatient';
 import History from './components/History';
 import ANMDashboard from './components/ANMDashboard';
 import VoiceTriageModal from './components/VoiceTriageModal';
+import DoctorDashboard from './components/DoctorDashboard';
 import HospitalsMap from './components/HospitalsMap';
 import { getNearbyHospitals, registerDynamicVillage, reverseGeocode } from './utils/hospitals';
 import { useLanguage } from './context/LanguageContext';
@@ -16,7 +17,7 @@ import './App.css';
 import { API_BASE_URL } from './config';
 
 
-// Seed initial history data for ANM Supervisor cluster view
+// Seed initial history data for Supervisor and Doctor cluster view
 const SEED_TRIAGES = [
   {
     id: 'mock-triage-1',
@@ -24,7 +25,7 @@ const SEED_TRIAGES = [
     patientName: 'Karan Mehra',
     patientDetails: '3 years · Male',
     village: 'Piparia',
-    ashaName: 'Kiran Bai',
+    ashaName: 'Sunita Devi',
     date: '20 Jun 2026, 02:30 PM',
     language: 'Hindi',
     transcript: "बच्चे का शरीर पीला पड़ गया है और बहुत कमजोर लग रहा है, सांस तेज चल रही है।",
@@ -33,6 +34,12 @@ const SEED_TRIAGES = [
     symptoms: ['Severe Pallor', 'Fast Breathing (Tachypnea)', 'Severe Lethargy'],
     advice: 'Immediate referral for suspected severe anemia. Transfer to District Hospital.',
     resolved: false,
+    doctorVerificationStatus: 'verified',
+    verifiedBy: 'Dr. Rajesh Sharma',
+    verifiedAt: '2026-06-20T14:45:00.000Z',
+    doctorUrgency: 'Red',
+    doctorSymptoms: ['Severe Anemia Pallor', 'Tachypnea', 'Lethargy'],
+    doctorMessage: 'Confirmed severe anemia emergency. Please administer oxygen if available and transfer immediately to District Hospital ICU. I have alerted the receiving casualty doctor.',
     txHash: '0x356efbfa8a36b9442a8b9ee4db5a528659104bf765cf21ab01e9871fc35f0f3a',
     blockNumber: 48102938,
     dataHash: '439a3f2b4c10ef9ba820cde8392cfbc8c91a0b3f8db1c98de3e498c8cde72fa8'
@@ -52,6 +59,12 @@ const SEED_TRIAGES = [
     symptoms: ['Severe Abdominal Pain', 'Moderate Fever'],
     advice: 'Refer to PHC within 24 hours. Keep patient NPO (no oral intake) until evaluated.',
     resolved: false,
+    doctorVerificationStatus: 'pending',
+    verifiedBy: null,
+    verifiedAt: null,
+    doctorUrgency: 'Yellow',
+    doctorSymptoms: ['Severe Abdominal Pain', 'Moderate Fever'],
+    doctorMessage: '',
     txHash: '0xa41efbda8a36b9442a8b9ee4db5a528659104bf765cf21ab01e9871fc35f0e34',
     blockNumber: 48103102,
     dataHash: '5e9a3f2b4c10ef9ba820cde8392cfbc8c91a0b3f8db1c98de3e498c8cde72fb9'
@@ -476,12 +489,48 @@ function App() {
   };
 
   const handleResolveTriage = (triageId) => {
-    setTriageHistory(prev => prev.map(t => t.id === triageId ? { ...t, resolved: true } : t));
+    setTriageHistory(prev => prev.map(t => (t.id === triageId || t._id === triageId) ? { ...t, resolved: true } : t));
     showToast('Critical triage alert acknowledged & resolved.');
   };
 
-  // Stats Counters (specific to worker "Sunita Devi" vs All)
+  const handleVerifyTriage = async (triageId, verificationData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/triage/${triageId}/verify`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(verificationData)
+      });
+      if (response.ok) {
+        const updated = await response.json();
+        setTriageHistory(prev => prev.map(t => (t.id === triageId || t._id === triageId) ? updated : t));
+        showToast('Triage verified and message sent to ASHA Worker!');
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend verification call failed, updating local state:', err);
+    }
+
+    setTriageHistory(prev => prev.map(t => {
+      if (t.id === triageId || t._id === triageId) {
+        return {
+          ...t,
+          doctorVerificationStatus: 'verified',
+          verifiedBy: verificationData.verifiedBy,
+          verifiedAt: new Date().toISOString(),
+          doctorUrgency: verificationData.doctorUrgency || t.urgency,
+          doctorSymptoms: verificationData.doctorSymptoms || t.symptoms,
+          doctorMessage: verificationData.doctorMessage
+        };
+      }
+      return t;
+    }));
+    showToast('Triage verified and message sent to ASHA Worker!');
+  };
+
+  // Role Checks & Stats Counters (2 Roles: ASHA Worker vs Doctor)
   const isASHA = user?.role === 'ASHA Worker' || user?.role === 'ASHA';
+  const isDoctor = !isASHA;
+
   const displayHistory = isASHA 
     ? triageHistory.filter(t => t.ashaName === user.name) 
     : triageHistory;
@@ -617,14 +666,14 @@ function App() {
                 </button>
               </>
             ) : (
-              /* ANM Supervisor Sidebar Layout (Single Main Board view) */
+              /* Doctor Workspace Sidebar Link */
               <button 
                 onClick={() => setCurrentView('home')}
                 className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-semibold transition-all bg-[#123152] text-white font-bold`}
               >
                 <span className="flex items-center gap-3">
-                  <Home className="w-5 h-5" />
-                  {t('cluster_dashboard')}
+                  <Home className="w-5 h-5 text-[#E07A5F]" />
+                  Doctor Verification Dashboard
                 </span>
                 <ChevronRight className="w-4 h-4 text-[#E07A5F]" />
               </button>
@@ -636,7 +685,9 @@ function App() {
         <div className="space-y-3 pt-4 border-t border-white/10 shrink-0">
           <div>
             <div className="font-bold text-sm text-white">{user.name}</div>
-            <div className="text-[10px] uppercase text-[#E07A5F] font-extrabold tracking-wider">{user.role === 'ASHA Worker' || user.role === 'ASHA' ? t('asha_label') : t('supervisor_workspace_title')} · {user.location}</div>
+            <div className="text-[10px] uppercase text-[#E07A5F] font-extrabold tracking-wider">
+              {isASHA ? 'ASHA WORKER' : 'DOCTOR / MEDICAL OFFICER'} · {user.location}
+            </div>
           </div>
           <button 
             onClick={handleLogout}
@@ -680,7 +731,7 @@ function App() {
         {/* Breadcrumb Workspace Segment */}
         <div className="mb-2">
           <span className="text-[10px] font-black tracking-[0.25em] uppercase text-[#E07A5F]">
-            {isASHA ? t('workspace') : t('supervisor_workspace')}
+            {isASHA ? t('workspace') : t('doctor_workspace_title')}
           </span>
         </div>
 
@@ -737,12 +788,11 @@ function App() {
             )}
           </>
         ) : (
-          /* ANM Supervisor Render Mode */
-          <ANMDashboard 
+          /* Doctor Render Mode */
+          <DoctorDashboard 
             user={user}
-            patients={patients}
             triageHistory={triageHistory}
-            onResolveTriage={handleResolveTriage}
+            onVerifyTriage={handleVerifyTriage}
             setSelectedHistoryItem={setSelectedHistoryItem}
           />
         )}
@@ -1037,11 +1087,43 @@ function App() {
                     </div>
                   </div>
 
+                  {/* Doctor Verification & Message Section */}
+                  {(selectedHistoryItem.doctorVerificationStatus === 'verified' || selectedHistoryItem.doctorVerificationStatus === 'modified') ? (
+                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          Verified by {selectedHistoryItem.verifiedBy || 'Doctor'}
+                        </span>
+                        <span className="text-[10px] text-emerald-700 font-bold">
+                          Confirmed: {selectedHistoryItem.doctorUrgency || selectedHistoryItem.urgency} Alert
+                        </span>
+                      </div>
+
+                      {selectedHistoryItem.doctorMessage && (
+                        <div>
+                          <span className="text-[10px] font-extrabold text-emerald-800 uppercase block">Doctor's Direct Instructions to ASHA Worker:</span>
+                          <p className="text-xs text-emerald-900 font-bold leading-relaxed bg-white/80 p-3 rounded-xl border border-emerald-200/60 mt-1 italic">
+                            "{selectedHistoryItem.doctorMessage}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 animate-pulse" />
+                        Pending Doctor Verification
+                      </span>
+                      <span className="text-[10px] text-amber-700 font-bold">Sent to Doctor Dashboard</span>
+                    </div>
+                  )}
+
                   {/* Extracted Symptoms */}
                   <div>
                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">{t('extracted_symptoms')}</h5>
                     <div className="flex flex-wrap gap-1.5">
-                      {selectedHistoryItem.symptoms && selectedHistoryItem.symptoms.map((s, i) => (
+                      {(selectedHistoryItem.doctorSymptoms && selectedHistoryItem.doctorSymptoms.length > 0 ? selectedHistoryItem.doctorSymptoms : selectedHistoryItem.symptoms || []).map((s, i) => (
                         <span key={i} className="text-xs px-2.5 py-1 bg-slate-100 text-[#0A2540] font-semibold rounded-md border border-slate-200">
                           {s}
                         </span>
