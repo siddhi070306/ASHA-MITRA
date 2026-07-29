@@ -28,6 +28,16 @@ const triageSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  doctorVerificationStatus: {
+    type: String,
+    enum: ['pending', 'verified', 'modified'],
+    default: 'pending'
+  },
+  verifiedBy: String,
+  verifiedAt: Date,
+  doctorUrgency: String,
+  doctorSymptoms: [String],
+  doctorMessage: String,
   txHash: String,
   blockNumber: Number,
   dataHash: String,
