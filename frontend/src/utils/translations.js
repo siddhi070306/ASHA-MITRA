@@ -79,7 +79,7 @@ export const translations = {
     male: "Male",
     other: "Other",
     village: "Village",
-    village_placeholder: "e.g. Rampur",
+    village_placeholder: "e.g. Sector 4 / Village",
     phone_optional: "Phone (Optional)",
     phone_placeholder: "e.g. 9876543210",
     notes_optional: "Notes (Optional)",

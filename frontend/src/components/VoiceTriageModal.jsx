@@ -50,13 +50,22 @@ const SYMPTOM_PRESETS = [
   }
 ];
 
-export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriage, userCoords }) {
+export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriage, userCoords, userLocationName, user, handleAddPatient }) {
   const { t } = useLanguage();
   const [selectedLanguage, setSelectedLanguage] = useState('hi');
-  const [triageStep, setTriageStep] = useState('idle'); // idle, recording, analyzing, completed, anchoring
+  const [triageStep, setTriageStep] = useState('idle'); // patient_info, idle, recording, analyzing, completed, anchoring
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [speechNotice, setSpeechNotice] = useState('');
+
+  // Current Patient State
+  const [currentPatient, setCurrentPatient] = useState(patient);
+  const [pName, setPName] = useState('');
+  const [pAge, setPAge] = useState('');
+  const [pGender, setPGender] = useState('Female');
+  const [pVillage, setPVillage] = useState('');
+  const [pPhone, setPPhone] = useState('');
+  const [pErr, setPErr] = useState('');
   
   // Real-time voice triage states
   const [transcript, setTranscript] = useState('');
@@ -105,6 +114,7 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
       setGpsState('idle');
       setNearbyHospitals([]);
       setSttProvider('');
+      setPErr('');
       if (timerRef.current) clearInterval(timerRef.current);
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         try { mediaRecorderRef.current.stop(); } catch(e){}
@@ -112,8 +122,54 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
       if (speechRecognitionRef.current) {
         try { speechRecognitionRef.current.stop(); } catch(e){}
       }
+    } else {
+      if (patient) {
+        setCurrentPatient(patient);
+        setTriageStep('idle');
+      } else {
+        setCurrentPatient(null);
+        setTriageStep('patient_info');
+        setPName('');
+        setPAge('');
+        setPGender('Female');
+        setPVillage(userLocationName || user?.location || '');
+        setPPhone('');
+        setPErr('');
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, patient, userLocationName, user]);
+
+  const handleSavePatientDetailsStep = async (e) => {
+    e.preventDefault();
+    setPErr('');
+    const cleanName = pName.trim();
+    const cleanAge = pAge.trim();
+    const cleanVillage = pVillage.trim();
+
+    if (!cleanName || !cleanAge || !cleanVillage) {
+      setPErr('Please fill out all compulsory patient fields (Name, Age, Village/Location).');
+      return;
+    }
+
+    const newPatientData = {
+      id: Date.now().toString(),
+      name: cleanName,
+      age: Number(cleanAge),
+      gender: pGender,
+      village: cleanVillage,
+      phone: pPhone.trim() || 'Not provided',
+      notes: 'Registered during voice triage session'
+    };
+
+    if (handleAddPatient) {
+      try {
+        await handleAddPatient(newPatientData, false);
+      } catch (err) {}
+    }
+
+    setCurrentPatient(newPatientData);
+    setTriageStep('idle');
+  };
 
   useEffect(() => {
     let active = true;
@@ -493,10 +549,10 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
       const block = Math.floor(Math.random() * 2000000) + 48000000;
       
       onSaveTriage({
-        patientId: patient?.id,
-        patientName: patient?.name || 'Walk-in Patient',
-        patientDetails: patient ? `${patient.age} years · ${patient.gender}` : 'Unknown details',
-        village: patient?.village || 'Rampur',
+        patientId: currentPatient?.id || Date.now().toString(),
+        patientName: currentPatient?.name || 'Registered Patient',
+        patientDetails: currentPatient ? `${currentPatient.age} years · ${currentPatient.gender}` : 'Details captured',
+        village: currentPatient?.village || userLocationName || user?.location || 'Local Sector',
         date: new Date().toLocaleString('en-IN', {
           day: '2-digit',
           month: 'short',
@@ -531,9 +587,9 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
     const text = 
       `*ASHA Saathi Clinical Referral Slip*\n` +
       `----------------------------------------\n` +
-      `*Patient Name:* ${patient?.name || 'Walk-in Patient'}\n` +
-      `*Profile:* ${patient ? `${patient.age}y · ${patient.gender}` : 'Not registered'}\n` +
-      `*Village:* ${patient?.village || 'Rampur'}\n` +
+      `*Patient Name:* ${currentPatient?.name || 'Registered Patient'}\n` +
+      `*Profile:* ${currentPatient ? `${currentPatient.age}y · ${currentPatient.gender}` : 'Registered'}\n` +
+      `*Village:* ${currentPatient?.village || userLocationName || 'Active Sector'}\n` +
       `*Urgency Level:* ${alertSymbol}\n\n` +
       `*Spoken Voice:* "${transcript}"\n` +
       `*Key Words:* ${keywords.length > 0 ? keywords.join(', ') : 'N/A'}\n` +
@@ -560,8 +616,8 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
             <div>
               <h3 className="font-heading font-extrabold text-lg">{t('ai_voice_triage')}</h3>
               <p className="text-xs text-white/70">
-                {t('patient')}: <span className="font-bold text-[#E07A5F]">{patient?.name || t('new_triage')}</span>
-                {patient && ` (${patient.age}y · ${patient.gender === 'Female' ? t('female').toLowerCase() : patient.gender === 'Male' ? t('male').toLowerCase() : t('other').toLowerCase()})`}
+                {t('patient')}: <span className="font-bold text-[#E07A5F]">{currentPatient?.name || 'New Patient Triage'}</span>
+                {currentPatient && ` (${currentPatient.age}y · ${currentPatient.gender === 'Female' ? t('female').toLowerCase() : currentPatient.gender === 'Male' ? t('male').toLowerCase() : t('other').toLowerCase()})`}
               </p>
             </div>
           </div>
@@ -574,24 +630,129 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
           </button>
         </div>
 
-      {/* Input Mode Tabs */}
-      <div className="flex space-x-2 mb-4 px-6 mt-4">
-        <button
-          onClick={() => setInputMode('voice')}
-          className={`px-4 py-2 rounded ${inputMode === 'voice' ? 'bg-[#E07A5F] text-white' : 'bg-gray-200 text-gray-800'}`}
-        >
-          {t('voice_input')}
-        </button>
-        <button
-          onClick={() => setInputMode('manual')}
-          className={`px-4 py-2 rounded ${inputMode === 'manual' ? 'bg-[#E07A5F] text-white' : 'bg-gray-200 text-gray-800'}`}
-        >
-          {t('manual_input')}
-        </button>
-      </div>
+      {/* Input Mode Tabs (Shown only when patient is registered) */}
+      {triageStep !== 'patient_info' && (
+        <div className="flex space-x-2 mb-4 px-6 mt-4">
+          <button
+            onClick={() => setInputMode('voice')}
+            className={`px-4 py-2 rounded ${inputMode === 'voice' ? 'bg-[#E07A5F] text-white' : 'bg-gray-200 text-gray-800'}`}
+          >
+            {t('voice_input')}
+          </button>
+          <button
+            onClick={() => setInputMode('manual')}
+            className={`px-4 py-2 rounded ${inputMode === 'manual' ? 'bg-[#E07A5F] text-white' : 'bg-gray-200 text-gray-800'}`}
+          >
+            {t('manual_input')}
+          </button>
+        </div>
+      )}
 
         {/* Scrollable Content Container */}
         <div className="p-6 overflow-y-auto flex-grow">
+          {/* STEP: Compulsory Patient Info Collection */}
+          {triageStep === 'patient_info' && (
+            <div className="space-y-4 text-left py-2">
+              <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl">
+                <h4 className="font-heading font-extrabold text-sm text-[#0A2540] uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#E07A5F]" />
+                  Patient Details Required
+                </h4>
+                <p className="text-xs text-slate-600 mt-1 font-medium leading-relaxed">
+                  Please enter patient details below before starting the AI Voice Triage assessment. Name, Age, Gender, and Location are compulsory.
+                </p>
+              </div>
+
+              {pErr && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl">
+                  {pErr}
+                </div>
+              )}
+
+              <form onSubmit={handleSavePatientDetailsStep} className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    value={pName}
+                    onChange={(e) => setPName(e.target.value)}
+                    placeholder="e.g. Meena Devi"
+                    className="w-full p-3 text-sm rounded-xl border border-slate-200 font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                      Age <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="number"
+                      required
+                      min="0"
+                      max="120"
+                      value={pAge}
+                      onChange={(e) => setPAge(e.target.value)}
+                      placeholder="e.g. 28"
+                      className="w-full p-3 text-sm rounded-xl border border-slate-200 font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
+                    <select 
+                      value={pGender}
+                      onChange={(e) => setPGender(e.target.value)}
+                      className="w-full p-3 text-sm rounded-xl border border-slate-200 font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none bg-white cursor-pointer"
+                    >
+                      <option value="Female">Female (महिला)</option>
+                      <option value="Male">Male (पुरुष)</option>
+                      <option value="Other">Other (अन्य)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Village / Location <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text"
+                    required
+                    value={pVillage}
+                    onChange={(e) => setPVillage(e.target.value)}
+                    placeholder="e.g. Active Sector / Village"
+                    className="w-full p-3 text-sm rounded-xl border border-slate-200 font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                    Phone Number (Optional)
+                  </label>
+                  <input 
+                    type="tel"
+                    value={pPhone}
+                    onChange={(e) => setPPhone(e.target.value)}
+                    placeholder="e.g. 9876543210"
+                    className="w-full p-3 text-sm rounded-xl border border-slate-200 font-semibold text-[#0A2540] focus:border-[#E07A5F] focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-extrabold text-sm rounded-2xl shadow-soft transition-all mt-4 flex items-center justify-center gap-2"
+                >
+                  Proceed to Voice Assessment
+                </button>
+              </form>
+            </div>
+          )}
           {triageStep === 'idle' && (
             <>
               {/* Voice Input UI */}

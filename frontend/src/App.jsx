@@ -17,59 +17,8 @@ import './App.css';
 import { API_BASE_URL } from './config';
 
 
-// Seed initial history data for Supervisor and Doctor cluster view
-const SEED_TRIAGES = [
-  {
-    id: 'mock-triage-1',
-    patientId: 'mock-p-1',
-    patientName: 'Karan Mehra',
-    patientDetails: '3 years · Male',
-    village: 'Piparia',
-    ashaName: 'Sunita Devi',
-    date: '20 Jun 2026, 02:30 PM',
-    language: 'Hindi',
-    transcript: "बच्चे का शरीर पीला पड़ गया है और बहुत कमजोर लग रहा है, सांस तेज चल रही है।",
-    translation: "Child's body has turned pale and looks very weak, breathing is fast.",
-    urgency: 'Red',
-    symptoms: ['Severe Pallor', 'Fast Breathing (Tachypnea)', 'Severe Lethargy'],
-    advice: 'Immediate referral for suspected severe anemia. Transfer to District Hospital.',
-    resolved: false,
-    doctorVerificationStatus: 'verified',
-    verifiedBy: 'Dr. Rajesh Sharma',
-    verifiedAt: '2026-06-20T14:45:00.000Z',
-    doctorUrgency: 'Red',
-    doctorSymptoms: ['Severe Anemia Pallor', 'Tachypnea', 'Lethargy'],
-    doctorMessage: 'Confirmed severe anemia emergency. Please administer oxygen if available and transfer immediately to District Hospital ICU. I have alerted the receiving casualty doctor.',
-    txHash: '0x356efbfa8a36b9442a8b9ee4db5a528659104bf765cf21ab01e9871fc35f0f3a',
-    blockNumber: 48102938,
-    dataHash: '439a3f2b4c10ef9ba820cde8392cfbc8c91a0b3f8db1c98de3e498c8cde72fa8'
-  },
-  {
-    id: 'mock-triage-2',
-    patientId: 'mock-p-2',
-    patientName: 'Radha Bai',
-    patientDetails: '27 years · Female',
-    village: 'Katni',
-    ashaName: 'Geeta Verma',
-    date: '21 Jun 2026, 09:15 AM',
-    language: 'Hindi',
-    transcript: "कल रात से बहुत तेज पेट में दर्द हो रहा है और बुखार भी है।",
-    translation: "Experiencing severe abdominal pain since last night along with fever.",
-    urgency: 'Yellow',
-    symptoms: ['Severe Abdominal Pain', 'Moderate Fever'],
-    advice: 'Refer to PHC within 24 hours. Keep patient NPO (no oral intake) until evaluated.',
-    resolved: false,
-    doctorVerificationStatus: 'pending',
-    verifiedBy: null,
-    verifiedAt: null,
-    doctorUrgency: 'Yellow',
-    doctorSymptoms: ['Severe Abdominal Pain', 'Moderate Fever'],
-    doctorMessage: '',
-    txHash: '0xa41efbda8a36b9442a8b9ee4db5a528659104bf765cf21ab01e9871fc35f0e34',
-    blockNumber: 48103102,
-    dataHash: '5e9a3f2b4c10ef9ba820cde8392cfbc8c91a0b3f8db1c98de3e498c8cde72fb9'
-  }
-];
+// Clean initial triage state (No dummy data)
+const SEED_TRIAGES = [];
 
 function App() {
   const { language, setLanguage, t } = useLanguage();
@@ -105,7 +54,7 @@ function App() {
     return savedUser ? JSON.parse(savedUser).location || 'Locating...' : 'Locating...';
   });
 
-  // Registered ASHA/ANM workers state
+  // Registered ASHA/Doctor workers state
   const [registeredUsers, setRegisteredUsers] = useState(() => {
     const saved = localStorage.getItem('asha_registered_users');
     return saved ? JSON.parse(saved) : [];
@@ -115,19 +64,17 @@ function App() {
   const [currentView, setCurrentView] = useState('home'); // home, patients, add-patient, history
   const [toast, setToast] = useState(null);
 
-  // Data State with LocalStorage persistence
+  // Data State with LocalStorage persistence (Empty initial arrays - no dummy data)
   const [patients, setPatients] = useState(() => {
     const saved = localStorage.getItem('asha_patients');
     if (saved) return JSON.parse(saved);
-    return [
-      { id: '1', name: 'ABC DEF', age: 29, gender: 'Female', village: 'Pimpri', phone: '123456789', notes: 'Pregnancy term: 3 months. Needs routine check-ups.' }
-    ];
+    return [];
   });
 
   const [triageHistory, setTriageHistory] = useState(() => {
     const saved = localStorage.getItem('asha_triage_history');
-    if (saved && JSON.parse(saved).length > 0) return JSON.parse(saved);
-    return SEED_TRIAGES; // Seed data initially so supervisor dashboards have content
+    if (saved) return JSON.parse(saved);
+    return [];
   });
 
   // Search & Modal State
@@ -321,8 +268,16 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!phone || !password) {
+    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+    const cleanPass = password.trim();
+
+    if (!cleanPhone || !cleanPass) {
       setError('Please enter both phone number and password');
+      return;
+    }
+
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setError('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9');
       return;
     }
 
@@ -439,7 +394,7 @@ function App() {
       createdPatient = {
         id: Date.now().toString(),
         ...patientData,
-        village: patientData.village || 'Rampur',
+        village: patientData.village || userLocationName || 'Active Sector',
         phone: patientData.phone || 'Not provided'
       };
     }
@@ -882,6 +837,9 @@ function App() {
         patient={triagePatient}
         onSaveTriage={handleSaveTriage}
         userCoords={userCoords}
+        userLocationName={userLocationName}
+        user={user}
+        handleAddPatient={handleAddPatient}
       />
 
       {/* Triage Detail Inspector Dialog */}

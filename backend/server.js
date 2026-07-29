@@ -303,6 +303,15 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Name, phone, password, and location are required.' });
     }
 
+    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      return res.status(400).json({ error: 'Please provide a valid 10-digit Indian phone number starting with 6, 7, 8, or 9.' });
+    }
+
+    if (password.trim().length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
     if (isMongoConnected) {
       const existingUser = await User.findOne({ phone });
       if (existingUser) {

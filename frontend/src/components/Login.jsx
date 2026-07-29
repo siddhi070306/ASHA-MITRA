@@ -22,16 +22,11 @@ function LocationInputWithDropdown({
   const wrapperRef = useRef(null);
 
   const LOCAL_PRESETS = [
-    { name: 'Pimpri, Katni Sector', lat: 23.7800, lng: 80.3200, type: 'Sector' },
-    { name: 'Rampur, Katni Sector', lat: 23.8000, lng: 80.3500, type: 'Sector' },
-    { name: 'Katni City', lat: 23.8343, lng: 80.3892, type: 'District' },
-    { name: 'Piparia Rural Sector', lat: 23.8200, lng: 80.3700, type: 'Sector' },
-    { name: 'Vikas Nagar', lat: 23.8100, lng: 80.3600, type: 'Sector' },
-    { name: 'Jabalpur', lat: 23.1681, lng: 79.9338, type: 'City' },
-    { name: 'Bhopal', lat: 23.2599, lng: 77.4126, type: 'City' },
+    { name: 'Jabalpur', lat: 23.1681, lng: 79.9338, type: 'District' },
+    { name: 'Bhopal', lat: 23.2599, lng: 77.4126, type: 'Capital' },
     { name: 'Indore', lat: 22.7196, lng: 75.8577, type: 'City' },
     { name: 'Pune', lat: 18.5204, lng: 73.8567, type: 'City' },
-    { name: 'Mumbai', lat: 19.0760, lng: 72.8777, type: 'City' },
+    { name: 'Mumbai', lat: 19.0760, lng: 72.8777, type: 'Metro' },
     { name: 'Delhi', lat: 28.6139, lng: 77.2090, type: 'Metro' },
   ];
 
@@ -300,7 +295,7 @@ export default function Login({
 
     setGoogleSubmitting(true);
     try {
-      const targetLoc = regLocation.trim() || 'Rampur';
+      const targetLoc = regLocation.trim() || 'District Sector';
       const coords = await resolveLocationCoordinates(targetLoc, regCoords);
 
       const response = await fetch(`${API_BASE_URL}/api/auth/google/register`, {
@@ -359,21 +354,44 @@ export default function Login({
   const handleRegSubmit = async (e) => {
     e.preventDefault();
     setRegError('');
-    if (!regName || !regPhone || !regPassword) {
-      setRegError('Please fill out all required fields.');
+
+    const cleanName = regName.trim();
+    const cleanPhone = regPhone.trim().replace(/[\s-]/g, '');
+    const cleanPass = regPassword.trim();
+    const cleanLoc = regLocation.trim();
+
+    if (!cleanName || !cleanPhone || !cleanPass) {
+      setRegError('Please fill out all required fields (Name, Phone, Password).');
       return;
     }
+
+    // Validate 10-digit Indian phone number starting with 6-9
+    if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
+      setRegError('Please enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.');
+      return;
+    }
+
+    // Validate password strength (at least 6 chars)
+    if (cleanPass.length < 6) {
+      setRegError('Password must be at least 6 characters long for account security.');
+      return;
+    }
+
+    if (!cleanLoc) {
+      setRegError('Please enter or fetch your active location/sector.');
+      return;
+    }
+
     setRegLoading(true);
     try {
-      const targetLoc = regLocation.trim() || 'Rampur';
-      const coords = await resolveLocationCoordinates(targetLoc, regCoords);
+      const coords = await resolveLocationCoordinates(cleanLoc, regCoords);
 
       await handleRegister({
-        name: regName,
-        phone: regPhone,
-        password: regPassword,
-        role: regRole === 'ASHA Worker' ? 'ASHA Worker' : 'ANM Supervisor',
-        location: targetLoc,
+        name: cleanName,
+        phone: cleanPhone,
+        password: cleanPass,
+        role: regRole === 'Doctor' ? 'Doctor' : 'ASHA Worker',
+        location: cleanLoc,
         coordinates: coords
       });
     } catch (err) {

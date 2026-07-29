@@ -1,34 +1,30 @@
 // Coordinates of all graph nodes (for fallback coordinate lookup)
 export const NODE_COORDINATES = {
-  'Rampur': { latitude: 23.8000, longitude: 80.3500 },
-  'Piparia': { latitude: 23.8200, longitude: 80.3700 },
+  'District Sector': { latitude: 23.1681, longitude: 79.9338 },
+  'Community Sector': { latitude: 23.1800, longitude: 79.9500 },
   'Katni': { latitude: 23.8343, longitude: 80.3892 },
-  'Pimpri': { latitude: 23.7800, longitude: 80.3200 },
-  'Vikas Nagar': { latitude: 23.8100, longitude: 80.3600 },
-  'Katni District Hospital': { latitude: 23.8370, longitude: 80.4000 },
-  'Rampur Primary Health Centre (PHC)': { latitude: 23.8050, longitude: 80.3450 },
-  'Piparia Rural Health Clinic': { latitude: 23.8180, longitude: 80.3650 },
-  'Apex Multispeciality Hospital': { latitude: 23.8280, longitude: 80.3800 },
-  'Jabalpur Tertiary Referral Hospital': { latitude: 23.1681, longitude: 79.9338 },
-  'Vikas Nagar Wellness Clinic': { latitude: 23.8120, longitude: 80.3580 },
-  'Pimpri Sub-Health Centre': { latitude: 23.7840, longitude: 80.3250 },
-  'Dr. Sharma Family Clinic': { latitude: 23.8250, longitude: 80.3750 }
+  'Jabalpur': { latitude: 23.1681, longitude: 79.9338 },
+  'Bhopal': { latitude: 23.2599, longitude: 77.4126 },
+  'District Civil Hospital': { latitude: 23.1700, longitude: 79.9400 },
+  'Primary Health Centre (PHC)': { latitude: 23.1650, longitude: 79.9250 },
+  'Apex Multispeciality Hospital': { latitude: 23.1780, longitude: 79.9480 },
+  'Tertiary Referral Hospital': { latitude: 23.1681, longitude: 79.9338 }
 };
 
 // Regional hospitals and clinic profiles (including small clinics, PHCs, CHCs, doctors)
 export const REGIONAL_HOSPITALS = [
   {
     id: 'hosp-1',
-    name: 'Katni District Hospital',
-    phone: '+91 76222 22001',
-    address: 'Near Railway Station, Katni, MP',
+    name: 'District Civil Hospital',
+    phone: '+91 76122 22001',
+    address: 'Civil Lines, Main Health Zone',
     type: 'hospital'
   },
   {
     id: 'hosp-2',
-    name: 'Rampur Primary Health Centre (PHC)',
-    phone: '+91 76222 23045',
-    address: 'Main Road, Rampur Sector 2, MP',
+    name: 'Primary Health Centre (PHC)',
+    phone: '+91 76122 23045',
+    address: 'Sector 2 Main PHC Road',
     type: 'clinic'
   },
   {
@@ -94,8 +90,8 @@ export function getHaversineDistance(lat1, lon1, lat2, lon2) {
  * Finds nearby hospitals based on direct coordinates straight-line distance
  */
 export function getNearbyHospitals(lat, lng, villageName) {
-  let startLat = 23.8000;
-  let startLng = 80.3500; // Rampur coordinates
+  let startLat = 23.1681;
+  let startLng = 79.9338; // Default District Sector coordinates
 
   if (lat && lng) {
     startLat = lat;
@@ -113,13 +109,13 @@ export function getNearbyHospitals(lat, lng, villageName) {
       startLat = NODE_COORDINATES[matchedNode].latitude;
       startLng = NODE_COORDINATES[matchedNode].longitude;
     } else {
-      startLat = NODE_COORDINATES['Rampur'].latitude;
-      startLng = NODE_COORDINATES['Rampur'].longitude;
+      startLat = NODE_COORDINATES['District Sector'].latitude;
+      startLng = NODE_COORDINATES['District Sector'].longitude;
     }
   }
 
   const results = REGIONAL_HOSPITALS.map(hosp => {
-    const coords = NODE_COORDINATES[hosp.name] || { latitude: 23.8000, longitude: 80.3500 };
+    const coords = NODE_COORDINATES[hosp.name] || { latitude: 23.1681, longitude: 79.9338 };
     const dist = getHaversineDistance(startLat, startLng, coords.latitude, coords.longitude);
     return {
       ...hosp,
@@ -197,7 +193,7 @@ export async function resolveLocationCoordinates(locationName, explicitCoords = 
     return explicitCoords;
   }
   if (!locationName || !locationName.trim()) {
-    return NODE_COORDINATES['Rampur'];
+    return NODE_COORDINATES['District Sector'];
   }
   const cleanName = locationName.trim();
   
@@ -215,8 +211,8 @@ export async function resolveLocationCoordinates(locationName, explicitCoords = 
     return geocoded;
   }
 
-  // 3. Fallback to Rampur base coordinates
-  return NODE_COORDINATES['Rampur'];
+  // 3. Fallback to District Sector base coordinates
+  return NODE_COORDINATES['District Sector'];
 }
 
 /**
@@ -317,8 +313,8 @@ export function generateDynamicFallbackHospitals(lat, lng, areaName) {
  * Resolves real clinics, PHCs, CHCs, and hospitals near GPS coordinates from OpenStreetMap Overpass API.
  */
 export async function getNearbyHospitalsAsync(lat, lng, villageName) {
-  let startLat = 23.8000;
-  let startLng = 80.3500; // default Katni/Rampur
+  let startLat = 23.1681;
+  let startLng = 79.9338; // Default District Sector coordinates
   const hasGps = Boolean(lat && lng);
 
   let fetchedList = [];
@@ -385,8 +381,8 @@ export async function getNearbyHospitalsAsync(lat, lng, villageName) {
       startLat = NODE_COORDINATES[matchedNode].latitude;
       startLng = NODE_COORDINATES[matchedNode].longitude;
     } else {
-      startLat = NODE_COORDINATES['Rampur'].latitude;
-      startLng = NODE_COORDINATES['Rampur'].longitude;
+      startLat = NODE_COORDINATES['District Sector'].latitude;
+      startLng = NODE_COORDINATES['District Sector'].longitude;
     }
   }
 
