@@ -93,6 +93,38 @@ export default function Dashboard({
         </div>
       </div>
 
+      {/* Doctor Verified Message Alert Banner for ASHA */}
+      {triageHistory.some(item => (item.doctorVerificationStatus === 'verified' || item.doctorVerificationStatus === 'modified') && item.doctorMessage) && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-emerald-900">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping"></span>
+              <h3 className="font-heading font-extrabold text-sm uppercase tracking-wider">{t('doctor_verified_banner')}</h3>
+            </div>
+            <span className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-black uppercase">Message from Doctor</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {triageHistory.filter(item => (item.doctorVerificationStatus === 'verified' || item.doctorVerificationStatus === 'modified') && item.doctorMessage).slice(0, 2).map(item => (
+              <div 
+                key={item.id}
+                onClick={() => setSelectedHistoryItem(item)}
+                className="bg-white border border-emerald-200 rounded-2xl p-4 cursor-pointer hover:border-emerald-400 transition-all shadow-sm space-y-2"
+              >
+                <div className="flex justify-between items-start">
+                  <span className="font-bold text-[#0A2540] text-sm">{item.patientName} ({item.patientDetails})</span>
+                  <span className="text-[10px] text-slate-400 font-bold">{item.date}</span>
+                </div>
+                <p className="text-xs text-slate-600 font-medium">Verified by: <span className="font-bold text-emerald-700">{item.verifiedBy || 'Doctor'}</span></p>
+                <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100 text-xs text-emerald-900 font-semibold italic">
+                  "{item.doctorMessage}"
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Recent Triages segment */}
       <div className="space-y-3">
         <div className="flex justify-between items-center">
@@ -111,39 +143,53 @@ export default function Dashboard({
           </div>
         ) : (
           <div className="space-y-3">
-            {triageHistory.slice(0, 3).map((item) => (
-              <div 
-                key={item.id}
-                onClick={() => setSelectedHistoryItem(item)}
-                className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between hover:border-[#E07A5F] cursor-pointer transition-all shadow-sm group"
-              >
-                <div className="flex items-center gap-4">
-                  <span className={`w-3.5 h-3.5 rounded-full shrink-0 ${
-                    item.urgency === 'Red' 
-                      ? 'bg-red-500 ring-4 ring-red-50' 
-                      : item.urgency === 'Yellow'
-                      ? 'bg-amber-500 ring-4 ring-amber-50'
-                      : 'bg-green-500 ring-4 ring-green-50'
-                  }`}></span>
-                  <div>
-                    <h4 className="font-bold text-[#0A2540] group-hover:text-[#E07A5F] transition-colors">{item.patientName}</h4>
-                    <p className="text-xs text-slate-500 mt-0.5">{item.date} · {t('language_spoken_col').split(' ')[0]}: {item.language}</p>
+            {triageHistory.slice(0, 4).map((item) => {
+              const isVerified = item.doctorVerificationStatus === 'verified' || item.doctorVerificationStatus === 'modified';
+              const currentUrgency = item.doctorUrgency || item.urgency;
+
+              return (
+                <div 
+                  key={item.id}
+                  onClick={() => setSelectedHistoryItem(item)}
+                  className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between hover:border-[#E07A5F] cursor-pointer transition-all shadow-sm group gap-3"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className={`w-3.5 h-3.5 rounded-full shrink-0 ${
+                      currentUrgency === 'Red' 
+                        ? 'bg-red-500 ring-4 ring-red-50' 
+                        : currentUrgency === 'Yellow'
+                        ? 'bg-amber-500 ring-4 ring-amber-50'
+                        : 'bg-green-500 ring-4 ring-green-50'
+                    }`}></span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-[#0A2540] group-hover:text-[#E07A5F] transition-colors">{item.patientName}</h4>
+                        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                          currentUrgency === 'Red' ? 'bg-red-100 text-red-800' : currentUrgency === 'Yellow' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'
+                        }`}>
+                          {currentUrgency}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">{item.date} · {t('language_spoken_col').split(' ')[0]}: {item.language}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-2 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
+                    {/* Doctor Verification Status Indicator */}
+                    {isVerified ? (
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                        ✓ Verified by {item.verifiedBy || 'Doctor'}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg animate-pulse">
+                        ⏳ Pending Doctor Verification
+                      </span>
+                    )}
+                    <ChevronRight className="w-5 h-5 text-slate-300" />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
-                    item.urgency === 'Red' 
-                      ? 'bg-red-100 text-red-800' 
-                      : item.urgency === 'Yellow'
-                      ? 'bg-amber-100 text-amber-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {item.urgency}
-                  </span>
-                  <ChevronRight className="w-5 h-5 text-slate-300" />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
