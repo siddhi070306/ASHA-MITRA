@@ -11,6 +11,7 @@ import ANMDashboard from './components/ANMDashboard';
 import VoiceTriageModal from './components/VoiceTriageModal';
 import DoctorDashboard from './components/DoctorDashboard';
 import HospitalsMap from './components/HospitalsMap';
+import LandingSplash from './components/LandingSplash';
 import { getNearbyHospitals, registerDynamicVillage, reverseGeocode } from './utils/hospitals';
 import { useLanguage } from './context/LanguageContext';
 import { formatDateTime } from './utils/dateUtils';
@@ -25,6 +26,9 @@ function App() {
   const { language, setLanguage, t } = useLanguage();
   const selectedLanguage = language;
   const setSelectedLanguage = setLanguage;
+
+  // Site initial 2-second splash screen state
+  const [showSplash, setShowSplash] = useState(true);
 
   // Authentication & User state
   const [phone, setPhone] = useState('');
@@ -497,24 +501,28 @@ function App() {
 
   if (!user) {
     return (
-      <Login 
-        phone={phone}
-        setPhone={setPhone}
-        password={password}
-        setPassword={setPassword}
-        loading={loading}
-        error={error}
-        handleLogin={handleLogin}
-        selectedLanguage={selectedLanguage}
-        setSelectedLanguage={setSelectedLanguage}
-        handleRegister={handleRegister}
-        handleGoogleLoginSuccess={handleGoogleLoginSuccess}
-      />
+      <>
+        {showSplash && <LandingSplash onComplete={() => setShowSplash(false)} />}
+        <Login 
+          phone={phone}
+          setPhone={setPhone}
+          password={password}
+          setPassword={setPassword}
+          loading={loading}
+          error={error}
+          handleLogin={handleLogin}
+          selectedLanguage={selectedLanguage}
+          setSelectedLanguage={setSelectedLanguage}
+          handleRegister={handleRegister}
+          handleGoogleLoginSuccess={handleGoogleLoginSuccess}
+        />
+      </>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#FDFBF7] dotted-bg font-sans text-slate-800">
+      {showSplash && <LandingSplash onComplete={() => setShowSplash(false)} />}
       
       {/* Toast Alert Notification */}
       {toast && (
