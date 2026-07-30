@@ -541,7 +541,11 @@ app.get('/api/triage', async (req, res) => {
         return {
           ...obj,
           id: obj._id.toString(),
-          date: obj.createdAt ? new Date(obj.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : obj.date
+          date: obj.createdAt ? new Date(obj.createdAt).toLocaleString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit', hour12: true,
+            timeZone: 'Asia/Kolkata'
+          }) : (obj.date || new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }))
         };
       });
       return res.json(formatted);
@@ -561,12 +565,19 @@ app.post('/api/triage', async (req, res) => {
       patientName, patientAge, patientGender, village, ashaName, urgency,
       symptoms, vitals, advice, transcript, translation, audioUrl,
       txHash, blockNumber, dataHash, coordinates,
-      doctorVerificationStatus, verifiedBy, doctorUrgency, doctorSymptoms, doctorMessage
+      doctorVerificationStatus, verifiedBy, doctorUrgency, doctorSymptoms, doctorMessage,
+      date
     } = req.body;
 
     if (!patientName || !ashaName || !urgency) {
       return res.status(400).json({ error: 'Patient name, ASHA name, and urgency are required.' });
     }
+
+    const currentFormattedDate = date || new Date().toLocaleString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      timeZone: 'Asia/Kolkata'
+    });
 
     if (isMongoConnected) {
       const newTriage = new Triage({
@@ -598,7 +609,7 @@ app.post('/api/triage', async (req, res) => {
       return res.status(201).json({
         ...obj,
         id: obj._id.toString(),
-        date: new Date(obj.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+        date: currentFormattedDate
       });
     }
 
@@ -616,8 +627,11 @@ app.post('/api/triage', async (req, res) => {
       doctorUrgency: doctorUrgency || urgency,
       doctorSymptoms: doctorSymptoms || symptoms || [],
       doctorMessage: doctorMessage || '',
-      date: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+      date: currentFormattedDate
     };
+    records.unshift(newRecord);
+    saveJsonData(TRIAGE_FILE, records);
+    return res.status(201).json(newRecord);
     records.unshift(newRecord);
     saveJsonData(TRIAGE_FILE, records);
     return res.status(201).json(newRecord);
