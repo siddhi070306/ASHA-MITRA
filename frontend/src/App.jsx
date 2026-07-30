@@ -13,6 +13,7 @@ import DoctorDashboard from './components/DoctorDashboard';
 import HospitalsMap from './components/HospitalsMap';
 import { getNearbyHospitals, registerDynamicVillage, reverseGeocode } from './utils/hospitals';
 import { useLanguage } from './context/LanguageContext';
+import { formatDateTime } from './utils/dateUtils';
 import './App.css';
 import { API_BASE_URL } from './config';
 
@@ -863,12 +864,12 @@ function App() {
 
             <div className="p-6 overflow-y-auto space-y-5">
               {selectedHistoryItem.showExplorer ? (
-                /* CUSTOM POLYGONSCAN SIMULATION CARD VIEW */
+                /* SIMPLIFIED SAFETY RECEIPT CARD VIEW */
                 <div className="space-y-4 text-left">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
-                      Polygon Amoy Network
+                      Tamper-Proof Digital Verification
                     </span>
                     <span className="px-2 py-0.5 bg-green-100 text-green-800 text-[10px] font-black uppercase rounded">
                       {t('secured')}
@@ -887,8 +888,8 @@ function App() {
                         <span className="text-slate-800 font-bold">#{selectedHistoryItem.blockNumber}</span>
                       </div>
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Confirmations</span>
-                        <span className="text-green-600 font-bold">128+ Blocks</span>
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Verification Status</span>
+                        <span className="text-green-600 font-bold">✓ Verified & Protected</span>
                       </div>
                     </div>
 
@@ -897,26 +898,15 @@ function App() {
                       <span className="break-all text-slate-800 font-semibold select-all">{selectedHistoryItem.dataHash}</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Transaction Cost</span>
-                        <span className="text-slate-700 font-bold">0.000342 MATIC</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Transaction Status</span>
-                        <span className="text-green-600 font-bold">✓ Success</span>
-                      </div>
-                    </div>
-
                     <div className="pt-2 border-t border-slate-100">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Anonymized Actor Address</span>
-                      <span className="text-slate-700">ASHA-WORKER-ID-{selectedHistoryItem.ashaName === 'Kiran Bai' ? '8803' : selectedHistoryItem.ashaName === 'Geeta Verma' ? '6419' : '9901'}</span>
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Health Worker Reference</span>
+                      <span className="text-slate-700 font-sans font-semibold">ASHA Worker: {selectedHistoryItem.ashaName || 'Sunita Devi'}</span>
                     </div>
                   </div>
 
                   <div className="p-4 bg-[#FDFBF7] border border-slate-200 rounded-2xl text-xs text-slate-500">
                     <p className="leading-relaxed">
-                      💡 <b>How it works:</b> ASHA Saathi hashes the clinical triage outcome to protect patient privacy and submits this hash on-chain. This provides an immutable legal record of the assessment timestamp and severity, protecting frontline workers from claims of negligence or tampered history.
+                      💡 <b>How it works:</b> ASHA Saathi automatically creates a safe digital receipt for every patient record. This ensures patient records are protected from any changes or loss, giving ASHA workers and doctors a reliable, trustworthy record.
                     </p>
                   </div>
                 </div>
@@ -935,53 +925,65 @@ function App() {
                     {selectedHistoryItem.urgency === 'Yellow' && <AlertTriangle className="w-6 h-6 text-amber-600 shrink-0" />}
                     {selectedHistoryItem.urgency === 'Green' && <CheckCircle2 className="w-6 h-6 text-green-600 shrink-0" />}
                     
-                     <div>
-                      <h4 className="font-bold text-sm">
-                        {(selectedHistoryItem.urgency === 'Red' ? t('red') : selectedHistoryItem.urgency === 'Yellow' ? t('yellow') : t('green'))} {t('ai_urgency_level')}
+                    <div className="space-y-1">
+                      <h4 className="font-extrabold text-sm uppercase tracking-wider">
+                        {selectedHistoryItem.urgency} Urgency Classification
                       </h4>
-                      <p className="text-xs mt-0.5 opacity-90">{selectedHistoryItem.advice}</p>
+                      <p className="text-xs leading-relaxed opacity-90 font-medium">
+                        {selectedHistoryItem.advice}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Nearby Emergency Hospitals */}
-                  {selectedHistoryItem.urgency === 'Red' && (
-                    <div className="bg-[#FFF5F5] border border-red-200/80 rounded-2xl p-4 space-y-3">
-                      <div className="flex items-center gap-2 border-b border-red-100 pb-2">
-                        <MapPin className="w-4 h-4 text-red-600 animate-bounce" />
-                        <h5 className="font-bold text-[#0A2540] text-xs uppercase tracking-wider">{t('nearby_emergency')}</h5>
-                        <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold ml-auto">
-                          {t('village_label')}: {selectedHistoryItem.village}
+                  {/* Doctor Verification Notice in Triage Detail Modal */}
+                  {(selectedHistoryItem.doctorVerificationStatus === 'verified' || selectedHistoryItem.doctorVerificationStatus === 'modified') && (
+                    <div className="bg-emerald-50 border-2 border-emerald-300 p-4 rounded-2xl space-y-1.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-emerald-800 uppercase tracking-wider flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          Verified by {selectedHistoryItem.verifiedBy || 'Doctor'}
                         </span>
+                        {selectedHistoryItem.doctorUrgency && selectedHistoryItem.doctorUrgency !== selectedHistoryItem.urgency && (
+                          <span className="px-2 py-0.5 bg-emerald-600 text-white rounded text-[10px] font-black uppercase">
+                            Urgency Updated to {selectedHistoryItem.doctorUrgency}
+                          </span>
+                        )}
                       </div>
-                      <div className="space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                        {getNearbyHospitals(null, null, selectedHistoryItem.village).map((hosp, idx) => (
-                          <div key={hosp.id} className="p-3 bg-white border border-slate-100 rounded-xl flex items-center justify-between gap-3 text-xs text-left">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-[#0A2540]">{hosp.name}</span>
-                                {idx === 0 && (
-                                  <span className="bg-red-600 text-white text-[8px] font-bold uppercase px-1.5 py-0.2 rounded">
-                                    Nearest
-                                  </span>
-                                )}
-                              </div>
-                              <span className="inline-block bg-slate-50 border border-slate-100 px-1 py-0.2 rounded text-[9px] text-slate-500 font-bold">
-                                {hosp.distance} km away
-                              </span>
+                      {selectedHistoryItem.doctorMessage && (
+                        <p className="text-xs text-emerald-950 font-bold bg-white/80 p-3 rounded-xl border border-emerald-200 leading-relaxed italic">
+                          "{selectedHistoryItem.doctorMessage}"
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Red Alert Route Emergency Facilities Recommendation */}
+                  {selectedHistoryItem.urgency === 'Red' && (
+                    <div className="space-y-2.5 bg-red-50/50 p-4 rounded-2xl border border-red-100">
+                      <h5 className="text-xs font-bold text-red-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <MapPin className="w-4 h-4 text-red-600" />
+                        {t('nearby_emergency')}
+                      </h5>
+                      <div className="space-y-2">
+                        {getNearbyHospitals(userCoords?.latitude || 28.6139, userCoords?.longitude || 77.2090).slice(0, 2).map((hosp, idx) => (
+                          <div key={idx} className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between text-xs shadow-xs">
+                            <div>
+                              <span className="font-bold text-slate-800 block">{hosp.name}</span>
+                              <span className="text-[10px] text-slate-500">{hosp.type} · {hosp.dist} km away</span>
                             </div>
-                            <div className="flex gap-1 shrink-0">
+                            <div className="flex items-center gap-1.5">
                               <a 
-                                href={`tel:${hosp.phone}`}
-                                className="p-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg border border-green-200 flex items-center justify-center gap-1 font-bold text-[10px]"
+                                href={`tel:${hosp.phone}`} 
+                                className="p-1.5 bg-red-50 text-red-700 rounded-lg font-bold text-[10px] flex items-center gap-1 border border-red-100 hover:bg-red-100"
                               >
                                 <Phone className="w-3 h-3" />
-                                <span>{t('call')}</span>
+                                <span>Call</span>
                               </a>
                               <a 
                                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hosp.name + ' ' + hosp.address)}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="p-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-lg border border-slate-200 flex items-center justify-center gap-1 font-bold text-[10px]"
+                                className="p-1.5 bg-slate-50 text-slate-600 rounded-lg font-bold text-[10px] flex items-center gap-1 border border-slate-200 hover:bg-slate-100"
                               >
                                 <ExternalLink className="w-3 h-3" />
                                 <span>Map</span>
@@ -1001,7 +1003,7 @@ function App() {
                           <Sparkles className="w-3.5 h-3.5 text-[#E07A5F]" />
                           {t('secured_polygon')}
                         </span>
-                        <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">Tx: {selectedHistoryItem.txHash.substring(0, 16)}...</span>
+                        <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">ID: {selectedHistoryItem.txHash.substring(0, 16)}...</span>
                       </div>
                       <button 
                         onClick={() => setSelectedHistoryItem(prev => ({ ...prev, showExplorer: true }))}
@@ -1029,7 +1031,7 @@ function App() {
                     </div>
                     <div className="mt-2">
                       <span className="text-slate-400 block mb-0.5 font-bold uppercase tracking-wider">{t('date_time_col')}</span>
-                      <span className="font-semibold text-slate-800">{selectedHistoryItem.date}</span>
+                      <span className="font-semibold text-slate-800">{formatDateTime(selectedHistoryItem.createdAt || selectedHistoryItem.date)}</span>
                     </div>
                   </div>
 

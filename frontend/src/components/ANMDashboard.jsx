@@ -4,6 +4,7 @@ import {
   ChevronRight, Phone, MessageSquare, ExternalLink, Sparkles 
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function ANMDashboard({
   user,
@@ -104,7 +105,7 @@ export default function ANMDashboard({
                     <span className="px-2 py-0.5 bg-red-600 text-white rounded text-[10px] font-black uppercase tracking-wider">
                       {t('critical_red')}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-bold">{alert.date}</span>
+                    <span className="text-[10px] text-slate-400 font-bold">{formatDateTime(alert.createdAt || alert.date)}</span>
                   </div>
                   <h4 className="font-bold text-[#0A2540] mt-2">{alert.patientName} ({alert.patientDetails})</h4>
                   <p className="text-xs text-slate-500 mt-1 font-semibold flex items-center gap-1">

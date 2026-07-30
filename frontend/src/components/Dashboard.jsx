@@ -1,6 +1,7 @@
 import React from 'react';
 import { Mic, UserPlus, Users, ChevronRight, Home, Activity } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function Dashboard({
   user,
@@ -113,7 +114,7 @@ export default function Dashboard({
               >
                 <div className="flex justify-between items-start">
                   <span className="font-bold text-[#0A2540] text-sm">{item.patientName} ({item.patientDetails})</span>
-                  <span className="text-[10px] text-slate-400 font-bold">{item.date}</span>
+                  <span className="text-[10px] text-slate-400 font-bold">{formatDateTime(item.createdAt || item.date)}</span>
                 </div>
                 <p className="text-xs text-slate-600 font-medium">Verified by: <span className="font-bold text-emerald-700">{item.verifiedBy || 'Doctor'}</span></p>
                 <div className="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100 text-xs text-emerald-900 font-semibold italic">
@@ -170,7 +171,7 @@ export default function Dashboard({
                           {currentUrgency}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">{item.date} · {t('language_spoken_col').split(' ')[0]}: {item.language}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{formatDateTime(item.createdAt || item.date)} · {t('language_spoken_col').split(' ')[0]}: {item.language}</p>
                     </div>
                   </div>
 
