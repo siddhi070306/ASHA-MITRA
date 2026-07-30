@@ -4,6 +4,7 @@ import {
   CheckCircle2, MessageSquare, ExternalLink, Sparkles, Filter, User, Send, Edit3
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function DoctorDashboard({
   user,
@@ -339,7 +340,10 @@ export default function DoctorDashboard({
                       }`}>
                         {currentUrgency} Urgency
                       </span>
-                      <span className="text-[10px] text-slate-400 font-bold">{item.date}</span>
+                      <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        {formatDateTime(item.createdAt || item.date)}
+                      </span>
                     </div>
 
                     <button
@@ -402,7 +406,10 @@ export default function DoctorDashboard({
               <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-1">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Original Voice Input from ASHA ({verifyingTriage.ashaName || 'Sunita Devi'})</span>
-                  <span className="text-[10px] text-slate-400 font-semibold">{verifyingTriage.date}</span>
+                  <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-slate-400" />
+                    {formatDateTime(verifyingTriage.createdAt || verifyingTriage.date)}
+                  </span>
                 </div>
                 <p className="text-xs text-slate-800 font-bold italic">"{verifyingTriage.transcript}"</p>
                 {verifyingTriage.translation && (

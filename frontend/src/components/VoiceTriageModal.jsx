@@ -4,6 +4,7 @@ import { generateSHA256, generateTxHash } from '../blockchain/crypto';
 import { getNearbyHospitals, getNearbyHospitalsAsync } from '../utils/hospitals';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL } from '../config';
+import { formatDateTime } from '../utils/dateUtils';
 
 const INDIAN_LANGUAGES = [
   { code: 'hi', sarvamCode: 'hi-IN', name: 'हिन्दी · Hindi' },
@@ -534,14 +535,14 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
     const dataHash = await generateSHA256(rawDataString);
     setCalculatedHash(dataHash);
 
-    setAnchoringLogs('Calculating record cryptographic SHA-256 hash...');
+    setAnchoringLogs('Generating tamper-proof digital safety receipt...');
     
     setTimeout(() => {
-      setAnchoringLogs('Broadcasting hash to Polygon Amoy Testnet RPC...');
+      setAnchoringLogs('Creating unalterable proof of clinical record...');
     }, 800);
 
     setTimeout(() => {
-      setAnchoringLogs('Transaction pending... Waiting for block confirmation...');
+      setAnchoringLogs('Locking digital record for patient safety...');
     }, 1600);
 
     setTimeout(() => {
@@ -553,14 +554,7 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
         patientName: currentPatient?.name || 'Registered Patient',
         patientDetails: currentPatient ? `${currentPatient.age} years · ${currentPatient.gender}` : 'Details captured',
         village: currentPatient?.village || userLocationName || user?.location || 'Local Sector',
-        date: new Date().toLocaleString('en-IN', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        }),
+        date: formatDateTime(new Date()),
         language: INDIAN_LANGUAGES.find(l => l.code === selectedLanguage)?.name || 'Hindi',
         transcript,
         translation,
@@ -598,7 +592,7 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
       `*Recommended Actions:* ${advice}\n` +
       `----------------------------------------\n` +
       `*Status:* Authenticated by ASHA worker\n` +
-      `*Hash (Polygon):* ${calculatedHash ? calculatedHash.substring(0, 16) + '...' : 'Will be anchored upon saving'}`;
+      `*Digital Safety ID:* ${calculatedHash ? calculatedHash.substring(0, 16) + '...' : 'Saved securely'}`;
     return encodeURIComponent(text);
   };
 

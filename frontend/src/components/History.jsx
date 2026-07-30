@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { formatDateTime } from '../utils/dateUtils';
 
 export default function History({
   triageHistory,
@@ -89,7 +90,7 @@ export default function History({
                       <td className="px-6 py-4 font-semibold text-slate-600">
                         {item.language === 'Hindi' ? t('hi').split(' · ')[0] : item.language === 'Marathi' ? t('mr').split(' · ')[0] : item.language === 'English' ? t('en').split(' · ')[0] : item.language}
                       </td>
-                      <td className="px-6 py-4 text-xs font-semibold text-slate-500">{item.date}</td>
+                      <td className="px-6 py-4 text-xs font-semibold text-slate-500">{formatDateTime(item.createdAt || item.date)}</td>
                       <td className="px-6 py-4 text-right">
                         <button 
                           onClick={() => setSelectedHistoryItem(item)}
