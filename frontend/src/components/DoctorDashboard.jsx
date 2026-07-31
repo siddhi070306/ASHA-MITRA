@@ -1,21 +1,30 @@
 import React, { useState } from 'react';
 import { 
   Stethoscope, AlertCircle, ShieldCheck, Clock, MapPin, Search, X, 
-  CheckCircle2, MessageSquare, ExternalLink, Sparkles, Filter, User, Send, Edit3
+  CheckCircle2, MessageSquare, ExternalLink, Sparkles, Filter, User, Send, Edit3,
+  Users, Phone, Calendar, ChevronRight, Activity, FileText
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { formatDateTime } from '../utils/dateUtils';
 
 export default function DoctorDashboard({
   user,
-  triageHistory,
+  patients = [],
+  triageHistory = [],
   onVerifyTriage,
   setSelectedHistoryItem
 }) {
   const { t } = useLanguage();
+  const [activeTab, setActiveTab] = useState('triage'); // 'triage' | 'patients'
+
+  // Triage Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVillage, setSelectedVillage] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All'); // 'All', 'pending', 'verified'
+
+  // Patients Search & Filters
+  const [patientSearchQuery, setPatientSearchQuery] = useState('');
+  const [selectedPatientVillage, setSelectedPatientVillage] = useState('All');
   
   // Verification Modal state
   const [verifyingTriage, setVerifyingTriage] = useState(null);
@@ -26,8 +35,9 @@ export default function DoctorDashboard({
 
   // Extract unique villages
   const villages = ['All', ...new Set(triageHistory.map(item => item.village).filter(Boolean))];
+  const patientVillages = ['All', ...new Set(patients.map(p => p.village).filter(Boolean))];
 
-  // Filtering
+  // Filtering Triage History
   const filteredTriages = triageHistory.filter(item => {
     const searchLower = searchQuery.toLowerCase();
     const matchesSearch = 
@@ -48,6 +58,19 @@ export default function DoctorDashboard({
     }
 
     return matchesSearch && matchesVillage && matchesStatus;
+  });
+
+  // Filtering Registered Patients
+  const filteredPatientsList = patients.filter(p => {
+    const q = patientSearchQuery.toLowerCase();
+    const matchesSearch = 
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.village && p.village.toLowerCase().includes(q)) ||
+      (p.phone && p.phone.includes(q)) ||
+      (p.notes && p.notes.toLowerCase().includes(q));
+
+    const matchesVillage = selectedPatientVillage === 'All' ? true : p.village === selectedPatientVillage;
+    return matchesSearch && matchesVillage;
   });
 
   // Calculations
@@ -108,7 +131,7 @@ export default function DoctorDashboard({
             {t('namaste')}, {user?.name || 'Doctor'} 👋
           </h1>
           <p className="text-xs md:text-sm text-slate-300 font-medium">
-            Review AI voice symptom extractions, verify triage urgency, and send direct treatment guidance to ASHA workers.
+            Review AI voice symptom extractions, verify triage urgency, and access complete registered patient records across ASHA sectors.
           </p>
         </div>
 
@@ -117,15 +140,19 @@ export default function DoctorDashboard({
             <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-300 block">Pending Verification</span>
             <span className="text-xl font-black text-amber-400">{pendingCount}</span>
           </div>
+          <div className="bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 text-center">
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-300 block">Total Patients</span>
+            <span className="text-xl font-black text-sky-400">{patients.length}</span>
+          </div>
         </div>
       </div>
 
       {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div 
-          onClick={() => setStatusFilter('pending')}
+          onClick={() => { setActiveTab('triage'); setStatusFilter('pending'); }}
           className={`p-5 rounded-3xl border transition-all cursor-pointer shadow-soft flex items-center justify-between ${
-            statusFilter === 'pending' ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200 hover:border-amber-300'
+            activeTab === 'triage' && statusFilter === 'pending' ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200 hover:border-amber-300'
           }`}
         >
           <div className="flex items-center gap-4">
@@ -141,9 +168,9 @@ export default function DoctorDashboard({
         </div>
 
         <div 
-          onClick={() => setStatusFilter('red')}
+          onClick={() => { setActiveTab('triage'); setStatusFilter('red'); }}
           className={`p-5 rounded-3xl border transition-all cursor-pointer shadow-soft flex items-center justify-between ${
-            statusFilter === 'red' ? 'bg-red-50/80 border-red-300 ring-2 ring-red-400' : 'bg-white border-slate-200 hover:border-red-300'
+            activeTab === 'triage' && statusFilter === 'red' ? 'bg-red-50/80 border-red-300 ring-2 ring-red-400' : 'bg-white border-slate-200 hover:border-red-300'
           }`}
         >
           <div className="flex items-center gap-4">
@@ -159,9 +186,9 @@ export default function DoctorDashboard({
         </div>
 
         <div 
-          onClick={() => setStatusFilter('verified')}
+          onClick={() => { setActiveTab('triage'); setStatusFilter('verified'); }}
           className={`p-5 rounded-3xl border transition-all cursor-pointer shadow-soft flex items-center justify-between ${
-            statusFilter === 'verified' ? 'bg-green-50/80 border-green-300 ring-2 ring-green-400' : 'bg-white border-slate-200 hover:border-green-300'
+            activeTab === 'triage' && statusFilter === 'verified' ? 'bg-green-50/80 border-green-300 ring-2 ring-green-400' : 'bg-white border-slate-200 hover:border-green-300'
           }`}
         >
           <div className="flex items-center gap-4">
@@ -174,205 +201,409 @@ export default function DoctorDashboard({
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Verification Feed Section */}
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <h2 className="font-heading font-extrabold text-xl text-[#0A2540]">{t('doctor_dashboard_title')}</h2>
-            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
-              {filteredTriages.length} Records
-            </span>
-          </div>
-
-          {/* Search & Filter Controls */}
-          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-            {/* Status Filter Tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
-              <button 
-                onClick={() => setStatusFilter('All')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${statusFilter === 'All' ? 'bg-white text-[#0A2540] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                All
-              </button>
-              <button 
-                onClick={() => setStatusFilter('pending')}
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${statusFilter === 'pending' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                Pending ({pendingCount})
-              </button>
-              <button 
-                onClick={() => setStatusFilter('verified')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${statusFilter === 'verified' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                Verified
-              </button>
+        <div 
+          onClick={() => setActiveTab('patients')}
+          className={`p-5 rounded-3xl border transition-all cursor-pointer shadow-soft flex items-center justify-between ${
+            activeTab === 'patients' ? 'bg-sky-50/80 border-sky-300 ring-2 ring-sky-400' : 'bg-white border-slate-200 hover:border-sky-300'
+          }`}
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center shrink-0">
+              <Users className="w-6 h-6" />
             </div>
-
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input 
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('search_placeholder')}
-                className="pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 focus:outline-none focus:border-[#E07A5F]"
-              />
-            </div>
-
-            {/* Village Selector */}
-            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              <select 
-                value={selectedVillage}
-                onChange={(e) => setSelectedVillage(e.target.value)}
-                className="py-1.5 text-xs font-semibold text-slate-700 bg-white focus:outline-none cursor-pointer"
-              >
-                {villages.map(v => (
-                  <option key={v} value={v}>{v === 'All' ? t('all_villages') : v}</option>
-                ))}
-              </select>
+            <div>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Registered Patients</span>
+              <span className="text-2xl font-black text-slate-900">{patients.length}</span>
             </div>
           </div>
         </div>
-
-        {/* Triage Cards Feed */}
-        {filteredTriages.length === 0 ? (
-          <div className="border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center bg-white/50 text-slate-400">
-            <p className="text-sm font-medium">{t('no_logs_match')}</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredTriages.map((item) => {
-              const isVerified = item.doctorVerificationStatus === 'verified' || item.doctorVerificationStatus === 'modified';
-              const currentUrgency = item.doctorUrgency || item.urgency;
-              const displaySymptoms = item.doctorSymptoms && item.doctorSymptoms.length > 0 ? item.doctorSymptoms : (item.symptoms || []);
-
-              return (
-                <div 
-                  key={item.id}
-                  onClick={() => setSelectedHistoryItem(item)}
-                  className={`bg-white border-2 rounded-3xl p-5 shadow-soft hover:shadow-lg transition-all flex flex-col justify-between cursor-pointer ${
-                    !isVerified 
-                      ? 'border-amber-300 ring-2 ring-amber-100 bg-amber-50/20' 
-                      : 'border-slate-200'
-                  }`}
-                >
-                  <div className="space-y-3">
-                    {/* Card Top Header */}
-                    <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-heading font-extrabold text-base text-[#0A2540]">{item.patientName}</h3>
-                          <span className="text-xs text-slate-500 font-semibold">({item.patientDetails})</span>
-                        </div>
-                        <p className="text-xs text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                          Village: <span className="font-bold text-slate-700">{item.village}</span> · ASHA: <span className="font-bold text-slate-700">{item.ashaName || 'Sunita Devi'}</span>
-                        </p>
-                      </div>
-
-                      {/* Verification Status Badge */}
-                      {isVerified ? (
-                        <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 border border-green-200">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                          Verified
-                        </span>
-                      ) : (
-                        <button
-                          onClick={(e) => handleOpenVerifyModal(e, item)}
-                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 shrink-0 shadow-md transition-all active:scale-95 animate-bounce"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          Verify Triage
-                        </button>
-                      )}
-                    </div>
-
-                    {/* AI Extracted Symptoms Chips */}
-                    <div className="space-y-1.5 pt-1">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
-                        Extracted Clinical Symptoms ({isVerified ? 'Doctor Verified' : 'AI Extracted'})
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {displaySymptoms.map((sym, idx) => (
-                          <span key={idx} className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200">
-                            {sym}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Voice Spoken Speech & Translation */}
-                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">
-                        Spoken Voice ({item.language || 'Hindi'}):
-                      </span>
-                      <p className="text-xs text-slate-800 font-semibold italic">"{item.transcript}"</p>
-                      {item.translation && item.translation !== item.transcript && (
-                        <p className="text-[11px] text-slate-500 font-medium border-t border-slate-200/60 pt-1 mt-1">
-                          En: "{item.translation}"
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Doctor's Note if verified */}
-                    {isVerified && item.doctorMessage && (
-                      <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl space-y-1">
-                        <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
-                          <MessageSquare className="w-3.5 h-3.5" />
-                          Doctor's Message to ASHA Worker:
-                        </span>
-                        <p className="text-xs text-emerald-900 font-bold leading-relaxed">
-                          "{item.doctorMessage}"
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card Bottom Actions */}
-                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
-                        currentUrgency === 'Red' ? 'bg-red-600 text-white' : currentUrgency === 'Yellow' ? 'bg-amber-500 text-white' : 'bg-green-600 text-white'
-                      }`}>
-                        {currentUrgency} Urgency
-                      </span>
-                      <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        {formatDateTime(item.createdAt || item.date)}
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={(e) => handleOpenVerifyModal(e, item)}
-                      className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md ${
-                        isVerified 
-                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' 
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 hover:scale-[1.02]'
-                      }`}
-                    >
-                      {isVerified ? (
-                        <>
-                          <Edit3 className="w-4 h-4 text-slate-600" />
-                          Edit Verification
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4 h-4 text-white" />
-                          Verify & Send Message
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
+
+      {/* Primary Dashboard Navigation Tabs */}
+      <div className="flex border-b border-slate-200 gap-4 sm:gap-8 text-sm font-bold pt-2 overflow-x-auto">
+        <button 
+          onClick={() => setActiveTab('triage')}
+          className={`pb-3 transition-all relative flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'triage' 
+              ? 'text-[#0A2540] font-extrabold border-b-2 border-[#E07A5F]' 
+              : 'text-slate-400 hover:text-slate-700'
+          }`}
+        >
+          <Stethoscope className="w-4 h-4 text-[#E07A5F]" />
+          Triage Verification Feed
+          <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-extrabold">
+            {pendingCount}
+          </span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('patients')}
+          className={`pb-3 transition-all relative flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'patients' 
+              ? 'text-[#0A2540] font-extrabold border-b-2 border-[#E07A5F]' 
+              : 'text-slate-400 hover:text-slate-700'
+          }`}
+        >
+          <Users className="w-4 h-4 text-[#E07A5F]" />
+          Registered Patients Register
+          <span className="px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 text-xs font-extrabold">
+            {patients.length}
+          </span>
+        </button>
+      </div>
+
+      {/* Dynamic Tab Body */}
+      {activeTab === 'triage' ? (
+        /* Verification Feed Section */
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading font-extrabold text-xl text-[#0A2540]">{t('doctor_dashboard_title')}</h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-xs font-bold">
+                {filteredTriages.length} Records
+              </span>
+            </div>
+
+            {/* Search & Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              {/* Status Filter Tabs */}
+              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+                <button 
+                  onClick={() => setStatusFilter('All')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${statusFilter === 'All' ? 'bg-white text-[#0A2540] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  All
+                </button>
+                <button 
+                  onClick={() => setStatusFilter('pending')}
+                  className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1 ${statusFilter === 'pending' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Pending ({pendingCount})
+                </button>
+                <button 
+                  onClick={() => setStatusFilter('verified')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${statusFilter === 'verified' ? 'bg-green-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Verified
+                </button>
+              </div>
+
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('search_placeholder')}
+                  className="pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 focus:outline-none focus:border-[#E07A5F]"
+                />
+              </div>
+
+              {/* Village Selector */}
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <select 
+                  value={selectedVillage}
+                  onChange={(e) => setSelectedVillage(e.target.value)}
+                  className="py-1.5 text-xs font-semibold text-slate-700 bg-white focus:outline-none cursor-pointer"
+                >
+                  {villages.map(v => (
+                    <option key={v} value={v}>{v === 'All' ? t('all_villages') : v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Triage Cards Feed */}
+          {filteredTriages.length === 0 ? (
+            <div className="border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center bg-white/50 text-slate-400">
+              <p className="text-sm font-medium">{t('no_logs_match')}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredTriages.map((item) => {
+                const isVerified = item.doctorVerificationStatus === 'verified' || item.doctorVerificationStatus === 'modified';
+                const currentUrgency = item.doctorUrgency || item.urgency;
+                const displaySymptoms = item.doctorSymptoms && item.doctorSymptoms.length > 0 ? item.doctorSymptoms : (item.symptoms || []);
+
+                return (
+                  <div 
+                    key={item.id}
+                    onClick={() => setSelectedHistoryItem(item)}
+                    className={`bg-white border-2 rounded-3xl p-5 shadow-soft hover:shadow-lg transition-all flex flex-col justify-between cursor-pointer ${
+                      !isVerified 
+                        ? 'border-amber-300 ring-2 ring-amber-100 bg-amber-50/20' 
+                        : 'border-slate-200'
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      {/* Card Top Header */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-heading font-extrabold text-base text-[#0A2540]">{item.patientName}</h3>
+                            <span className="text-xs text-slate-500 font-semibold">({item.patientDetails})</span>
+                          </div>
+                          <p className="text-xs text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            Village: <span className="font-bold text-slate-700">{item.village}</span> · ASHA: <span className="font-bold text-slate-700">{item.ashaName || 'Sunita Devi'}</span>
+                          </p>
+                        </div>
+
+                        {/* Verification Status Badge */}
+                        {isVerified ? (
+                          <span className="px-2.5 py-1 bg-green-100 text-green-800 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0 border border-green-200">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                            Verified
+                          </span>
+                        ) : (
+                          <button
+                            onClick={(e) => handleOpenVerifyModal(e, item)}
+                            className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1 shrink-0 shadow-md transition-all active:scale-95 animate-bounce"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            Verify Triage
+                          </button>
+                        )}
+                      </div>
+
+                      {/* AI Extracted Symptoms Chips */}
+                      <div className="space-y-1.5 pt-1">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                          Extracted Clinical Symptoms ({isVerified ? 'Doctor Verified' : 'AI Extracted'})
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {displaySymptoms.map((sym, idx) => (
+                            <span key={idx} className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-semibold border border-slate-200">
+                              {sym}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Voice Spoken Speech & Translation */}
+                      <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">
+                          Spoken Voice ({item.language || 'Hindi'}):
+                        </span>
+                        <p className="text-xs text-slate-800 font-semibold italic">"{item.transcript}"</p>
+                        {item.translation && item.translation !== item.transcript && (
+                          <p className="text-[11px] text-slate-500 font-medium border-t border-slate-200/60 pt-1 mt-1">
+                            En: "{item.translation}"
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Doctor's Note if verified */}
+                      {isVerified && item.doctorMessage && (
+                        <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl space-y-1">
+                          <span className="text-[10px] font-extrabold text-emerald-800 uppercase tracking-wider flex items-center gap-1">
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            Doctor's Message to ASHA Worker:
+                          </span>
+                          <p className="text-xs text-emerald-900 font-bold leading-relaxed">
+                            "{item.doctorMessage}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Bottom Actions */}
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                          currentUrgency === 'Red' ? 'bg-red-600 text-white' : currentUrgency === 'Yellow' ? 'bg-amber-500 text-white' : 'bg-green-600 text-white'
+                        }`}>
+                          {currentUrgency} Urgency
+                        </span>
+                        <span className="text-xs text-slate-500 font-semibold flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          {formatDateTime(item.createdAt || item.date)}
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={(e) => handleOpenVerifyModal(e, item)}
+                        className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shadow-md ${
+                          isVerified 
+                            ? 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300' 
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white border border-emerald-700 hover:scale-[1.02]'
+                        }`}
+                      >
+                        {isVerified ? (
+                          <>
+                            <Edit3 className="w-4 h-4 text-slate-600" />
+                            Edit Verification
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 text-white" />
+                            Verify & Send Message
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Registered Patients Register Section */
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading font-extrabold text-xl text-[#0A2540]">Registered Patients Register</h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 text-xs font-bold">
+                {filteredPatientsList.length} Registered
+              </span>
+            </div>
+
+            {/* Search & Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text"
+                  value={patientSearchQuery}
+                  onChange={(e) => setPatientSearchQuery(e.target.value)}
+                  placeholder="Search patient name, village, phone..."
+                  className="pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 focus:outline-none focus:border-[#E07A5F]"
+                />
+                {patientSearchQuery && (
+                  <button onClick={() => setPatientSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Village Selector */}
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <select 
+                  value={selectedPatientVillage}
+                  onChange={(e) => setSelectedPatientVillage(e.target.value)}
+                  className="py-1.5 text-xs font-semibold text-slate-700 bg-white focus:outline-none cursor-pointer"
+                >
+                  {patientVillages.map(v => (
+                    <option key={v} value={v}>{v === 'All' ? t('all_villages') : v}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Patients Cards Feed */}
+          {filteredPatientsList.length === 0 ? (
+            <div className="border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center bg-white/50 text-slate-400 space-y-2">
+              <Users className="w-12 h-12 text-slate-300 mx-auto" />
+              <p className="text-sm font-bold text-slate-600">No registered patients found</p>
+              <p className="text-xs text-slate-400">No patient records match the selected search query or village filter.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredPatientsList.map(patient => {
+                // Find all triage records for this patient
+                const patientTriages = triageHistory.filter(t => 
+                  t.patientName?.toLowerCase() === patient.name?.toLowerCase() ||
+                  t.patientId === patient.id || t.patientId === patient._id
+                );
+                const latestTriage = patientTriages[0];
+                const latestUrgency = latestTriage ? (latestTriage.doctorUrgency || latestTriage.urgency) : null;
+
+                return (
+                  <div 
+                    key={patient.id || patient._id || patient.name}
+                    className="bg-white border-2 border-slate-200 rounded-3xl p-5 shadow-soft hover:shadow-lg transition-all flex flex-col justify-between"
+                  >
+                    <div className="space-y-3">
+                      {/* Top Header */}
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-2xl bg-[#0A2540] text-white flex items-center justify-center font-bold text-base font-heading shrink-0 shadow-md">
+                            {patient.name?.charAt(0).toUpperCase() || 'P'}
+                          </div>
+                          <div>
+                            <h3 className="font-heading font-extrabold text-base text-[#0A2540] leading-tight">{patient.name}</h3>
+                            <span className="text-xs text-slate-500 font-semibold">
+                              {patient.age} {t('years')} · {patient.gender === 'Female' ? t('female') : patient.gender === 'Male' ? t('male') : t('other')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {latestUrgency && (
+                          <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider ${
+                            latestUrgency === 'Red' ? 'bg-red-600 text-white' : latestUrgency === 'Yellow' ? 'bg-amber-500 text-white' : 'bg-green-600 text-white'
+                          }`}>
+                            {latestUrgency}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Details Box */}
+                      <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span className="flex items-center gap-1.5 font-medium text-slate-400">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" /> Village:
+                          </span>
+                          <span className="font-bold text-slate-800">{patient.village}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-600">
+                          <span className="flex items-center gap-1.5 font-medium text-slate-400">
+                            <Phone className="w-3.5 h-3.5 text-slate-400" /> Contact:
+                          </span>
+                          <span className="font-bold text-slate-800">{patient.phone || 'Not provided'}</span>
+                        </div>
+                        {patient.createdAt && (
+                          <div className="flex items-center justify-between text-slate-600">
+                            <span className="flex items-center gap-1.5 font-medium text-slate-400">
+                              <Calendar className="w-3.5 h-3.5 text-slate-400" /> Registered:
+                            </span>
+                            <span className="font-semibold text-slate-700">{formatDateTime(patient.createdAt)}</span>
+                          </div>
+                        )}
+                        {patient.notes && (
+                          <div className="pt-1 border-t border-slate-200/60 text-slate-600 italic">
+                            "{patient.notes}"
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Triage Count Badge */}
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Triage History:</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-extrabold text-[11px]">
+                          {patientTriages.length} Record{patientTriages.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Bottom Action Button */}
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-end">
+                      {latestTriage ? (
+                        <button
+                          onClick={() => setSelectedHistoryItem(latestTriage)}
+                          className="w-full py-2.5 rounded-xl bg-[#0A2540] hover:bg-[#123152] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-[#E07A5F]" />
+                          Inspect Latest Triage
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400 italic text-center w-full py-1">No triage logs recorded yet</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Doctor Verification Interactive Modal */}
       {verifyingTriage && (

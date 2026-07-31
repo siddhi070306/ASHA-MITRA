@@ -227,13 +227,27 @@ function App() {
         body: JSON.stringify(cleanedData),
       });
 
-      const data = await response.json();
+      let data = {};
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn('Server non-JSON registration response:', response.status, text);
+        data = { error: `Server response error (${response.status})` };
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Registration failed');
       }
 
-      const registeredUser = data.user || cleanedData;
+      // Preserve password in cached user profile for offline login fallback
+      const registeredUser = {
+        ...cleanedData,
+        ...(data.user || {}),
+        password: cleanPass
+      };
+
       if (registeredUser.coordinates) {
         registerDynamicVillage(registeredUser.location, registeredUser.coordinates.latitude, registeredUser.coordinates.longitude);
         updateLocation(registeredUser.coordinates, registeredUser.location, true);
@@ -247,11 +261,11 @@ function App() {
       });
 
       setUser(registeredUser);
-      localStorage.setItem('token', data.token);
+      localStorage.setItem('token', data.token || ('offline-token-' + (registeredUser.id || Date.now())));
       localStorage.setItem('asha_user', JSON.stringify(registeredUser));
       showToast(data.message || 'Account registered successfully!');
     } catch (err) {
-      // If server explicitly rejected due to password mismatch or invalid phone/password format, display error
+      // If server explicitly rejected due to invalid input, display error
       if (err.message && (err.message.includes('different password') || err.message.includes('valid') || err.message.includes('required'))) {
         setError(err.message);
         throw err;
@@ -260,13 +274,14 @@ function App() {
       // Offline / local fallback or local re-registration check
       const existingLocalUser = registeredUsers.find(u => u.phone === cleanPhone);
       if (existingLocalUser) {
-        if (existingLocalUser.password === cleanPass) {
-          setUser(existingLocalUser);
-          localStorage.setItem('token', 'offline-token-' + (existingLocalUser.id || existingLocalUser._id));
-          localStorage.setItem('asha_user', JSON.stringify(existingLocalUser));
-          if (existingLocalUser.coordinates) {
-            registerDynamicVillage(existingLocalUser.location, existingLocalUser.coordinates.latitude, existingLocalUser.coordinates.longitude);
-            updateLocation(existingLocalUser.coordinates, existingLocalUser.location, true);
+        if (!existingLocalUser.password || existingLocalUser.password === cleanPass) {
+          const updatedUser = { ...existingLocalUser, password: cleanPass };
+          setUser(updatedUser);
+          localStorage.setItem('token', 'offline-token-' + (updatedUser.id || updatedUser._id || Date.now()));
+          localStorage.setItem('asha_user', JSON.stringify(updatedUser));
+          if (updatedUser.coordinates) {
+            registerDynamicVillage(updatedUser.location, updatedUser.coordinates.latitude, updatedUser.coordinates.longitude);
+            updateLocation(updatedUser.coordinates, updatedUser.location, true);
           }
           showToast('Account already registered — Logged in successfully!');
           return;
@@ -279,7 +294,8 @@ function App() {
 
       const newUser = {
         id: Date.now(),
-        ...cleanedData
+        ...cleanedData,
+        password: cleanPass
       };
 
       if (newUser.coordinates) {
@@ -296,7 +312,7 @@ function App() {
       setUser(newUser);
       localStorage.setItem('token', 'offline-token-' + newUser.id);
       localStorage.setItem('asha_user', JSON.stringify(newUser));
-      showToast('Account created (Local Mode)');
+      showToast('Account created successfully!');
     } finally {
       setLoading(false);
     }
@@ -334,56 +350,80 @@ function App() {
         body: JSON.stringify({ phone: cleanPhone, password: cleanPass }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        // If server returned error, check local registeredUsers as fallback
-        const foundLocal = registeredUsers.find(u => u.phone === cleanPhone && u.password === cleanPass);
-        if (foundLocal) {
-          setUser(foundLocal);
-          localStorage.setItem('token', 'offline-token-' + (foundLocal.id || foundLocal._id));
-          localStorage.setItem('asha_user', JSON.stringify(foundLocal));
-          if (foundLocal.coordinates) {
-            registerDynamicVillage(foundLocal.location, foundLocal.coordinates.latitude, foundLocal.coordinates.longitude);
-            updateLocation(foundLocal.coordinates, foundLocal.location, true);
-          }
-          showToast('Logged in successfully!');
-          return;
-        }
-        throw new Error(data.error || 'Login failed');
+      let data = {};
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.warn('Server non-JSON login response:', response.status, text);
+        data = { error: `Server connection error (${response.status})` };
       }
 
-      setUser(data.user);
+      if (!response.ok) {
+        // Check local registeredUsers as fallback if server returns 404 or connection error
+        const foundLocal = registeredUsers.find(u => u.phone === cleanPhone);
+        if (foundLocal) {
+          if (!foundLocal.password || foundLocal.password === cleanPass) {
+            const updatedUser = { ...foundLocal, password: cleanPass };
+            setUser(updatedUser);
+            localStorage.setItem('token', 'offline-token-' + (updatedUser.id || updatedUser._id || Date.now()));
+            localStorage.setItem('asha_user', JSON.stringify(updatedUser));
+            if (updatedUser.coordinates) {
+              registerDynamicVillage(updatedUser.location, updatedUser.coordinates.latitude, updatedUser.coordinates.longitude);
+              updateLocation(updatedUser.coordinates, updatedUser.location, true);
+            }
+            showToast('Logged in successfully!');
+            return;
+          } else {
+            throw new Error('Incorrect password for this mobile number.');
+          }
+        }
+        throw new Error(data.error || 'Login failed. Please check your credentials.');
+      }
+
+      const loggedInUser = {
+        ...data.user,
+        password: cleanPass
+      };
+
+      setUser(loggedInUser);
       localStorage.setItem('token', data.token);
-      localStorage.setItem('asha_user', JSON.stringify(data.user));
+      localStorage.setItem('asha_user', JSON.stringify(loggedInUser));
 
       setRegisteredUsers(prev => {
-        const filtered = prev.filter(u => u.phone !== data.user.phone);
-        const updated = [data.user, ...filtered];
+        const filtered = prev.filter(u => u.phone !== loggedInUser.phone);
+        const updated = [loggedInUser, ...filtered];
         localStorage.setItem('asha_registered_users', JSON.stringify(updated));
         return updated;
       });
 
-      if (data.user.coordinates) {
-        registerDynamicVillage(data.user.location, data.user.coordinates.latitude, data.user.coordinates.longitude);
-        updateLocation(data.user.coordinates, data.user.location, true);
+      if (loggedInUser.coordinates) {
+        registerDynamicVillage(loggedInUser.location, loggedInUser.coordinates.latitude, loggedInUser.coordinates.longitude);
+        updateLocation(loggedInUser.coordinates, loggedInUser.location, true);
       }
       showToast('Logged in successfully!');
     } catch (err) {
-      // Check locally registered users if server failed
-      const foundUser = registeredUsers.find(u => u.phone === cleanPhone && u.password === cleanPass);
+      // Check locally registered users if server call threw an exception
+      const foundUser = registeredUsers.find(u => u.phone === cleanPhone);
       if (foundUser) {
-        setUser(foundUser);
-        localStorage.setItem('token', 'offline-token-' + (foundUser.id || foundUser._id));
-        localStorage.setItem('asha_user', JSON.stringify(foundUser));
-        if (foundUser.coordinates) {
-          registerDynamicVillage(foundUser.location, foundUser.coordinates.latitude, foundUser.coordinates.longitude);
-          updateLocation(foundUser.coordinates, foundUser.location, true);
+        if (!foundUser.password || foundUser.password === cleanPass) {
+          const updatedUser = { ...foundUser, password: cleanPass };
+          setUser(updatedUser);
+          localStorage.setItem('token', 'offline-token-' + (updatedUser.id || updatedUser._id || Date.now()));
+          localStorage.setItem('asha_user', JSON.stringify(updatedUser));
+          if (updatedUser.coordinates) {
+            registerDynamicVillage(updatedUser.location, updatedUser.coordinates.latitude, updatedUser.coordinates.longitude);
+            updateLocation(updatedUser.coordinates, updatedUser.location, true);
+          }
+          showToast('Logged in successfully!');
+          return;
+        } else {
+          setError('Incorrect password for this mobile number.');
+          return;
         }
-        showToast('Logged in successfully!');
-      } else {
-        setError(err.message || 'This mobile number is not registered. Please register first.');
       }
+      setError(err.message || 'This mobile number is not registered. Please register first.');
     } finally {
       setLoading(false);
     }
@@ -820,6 +860,7 @@ function App() {
           /* Doctor Render Mode */
           <DoctorDashboard 
             user={user}
+            patients={patients}
             triageHistory={triageHistory}
             onVerifyTriage={handleVerifyTriage}
             setSelectedHistoryItem={setSelectedHistoryItem}
