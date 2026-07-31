@@ -686,7 +686,10 @@ export default function Login({
               <div className="mt-8 pt-6 border-t border-slate-100 text-sm text-slate-600 text-center">
                 {t('register_link').split('?')[0]}?{' '}
                 <button 
-                  onClick={() => setIsRegistering(true)} 
+                  onClick={() => {
+                    setRegError('');
+                    setIsRegistering(true);
+                  }} 
                   className="text-[#E07A5F] font-bold hover:underline bg-transparent border-none cursor-pointer"
                 >
                   {t('register_title')}
@@ -799,7 +802,10 @@ export default function Login({
               <div className="mt-4 text-xs text-slate-500 text-center">
                 Already registered?{' '}
                 <button 
-                  onClick={() => setIsRegistering(false)} 
+                  onClick={() => {
+                    setRegError('');
+                    setIsRegistering(false);
+                  }} 
                   className="text-[#E07A5F] font-semibold hover:underline bg-transparent border-none cursor-pointer"
                 >
                   {t('back_to_login')}

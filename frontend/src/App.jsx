@@ -216,11 +216,15 @@ function App() {
     setError(null);
     setLoading(true);
 
+    const cleanPhone = newUserData.phone ? newUserData.phone.trim().replace(/[\s-]/g, '') : '';
+    const cleanPass = newUserData.password ? newUserData.password.trim() : '';
+    const cleanedData = { ...newUserData, phone: cleanPhone, password: cleanPass };
+
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUserData),
+        body: JSON.stringify(cleanedData),
       });
 
       const data = await response.json();
@@ -229,21 +233,53 @@ function App() {
         throw new Error(data.error || 'Registration failed');
       }
 
-      const registeredUser = data.user || newUserData;
+      const registeredUser = data.user || cleanedData;
       if (registeredUser.coordinates) {
         registerDynamicVillage(registeredUser.location, registeredUser.coordinates.latitude, registeredUser.coordinates.longitude);
         updateLocation(registeredUser.coordinates, registeredUser.location, true);
       }
 
+      setRegisteredUsers(prev => {
+        const filtered = prev.filter(u => u.phone !== registeredUser.phone);
+        const updated = [registeredUser, ...filtered];
+        localStorage.setItem('asha_registered_users', JSON.stringify(updated));
+        return updated;
+      });
+
       setUser(registeredUser);
       localStorage.setItem('token', data.token);
       localStorage.setItem('asha_user', JSON.stringify(registeredUser));
-      showToast('Account registered successfully!');
+      showToast(data.message || 'Account registered successfully!');
     } catch (err) {
-      // Offline / local fallback
+      // If server explicitly rejected due to password mismatch or invalid phone/password format, display error
+      if (err.message && (err.message.includes('different password') || err.message.includes('valid') || err.message.includes('required'))) {
+        setError(err.message);
+        throw err;
+      }
+
+      // Offline / local fallback or local re-registration check
+      const existingLocalUser = registeredUsers.find(u => u.phone === cleanPhone);
+      if (existingLocalUser) {
+        if (existingLocalUser.password === cleanPass) {
+          setUser(existingLocalUser);
+          localStorage.setItem('token', 'offline-token-' + (existingLocalUser.id || existingLocalUser._id));
+          localStorage.setItem('asha_user', JSON.stringify(existingLocalUser));
+          if (existingLocalUser.coordinates) {
+            registerDynamicVillage(existingLocalUser.location, existingLocalUser.coordinates.latitude, existingLocalUser.coordinates.longitude);
+            updateLocation(existingLocalUser.coordinates, existingLocalUser.location, true);
+          }
+          showToast('Account already registered — Logged in successfully!');
+          return;
+        } else {
+          const errMsg = 'A user with this phone number is already registered with a different password.';
+          setError(errMsg);
+          throw new Error(errMsg);
+        }
+      }
+
       const newUser = {
         id: Date.now(),
-        ...newUserData
+        ...cleanedData
       };
 
       if (newUser.coordinates) {
@@ -295,18 +331,39 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ phone, password }),
+        body: JSON.stringify({ phone: cleanPhone, password: cleanPass }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        // If server returned error, check local registeredUsers as fallback
+        const foundLocal = registeredUsers.find(u => u.phone === cleanPhone && u.password === cleanPass);
+        if (foundLocal) {
+          setUser(foundLocal);
+          localStorage.setItem('token', 'offline-token-' + (foundLocal.id || foundLocal._id));
+          localStorage.setItem('asha_user', JSON.stringify(foundLocal));
+          if (foundLocal.coordinates) {
+            registerDynamicVillage(foundLocal.location, foundLocal.coordinates.latitude, foundLocal.coordinates.longitude);
+            updateLocation(foundLocal.coordinates, foundLocal.location, true);
+          }
+          showToast('Logged in successfully!');
+          return;
+        }
         throw new Error(data.error || 'Login failed');
       }
 
       setUser(data.user);
       localStorage.setItem('token', data.token);
       localStorage.setItem('asha_user', JSON.stringify(data.user));
+
+      setRegisteredUsers(prev => {
+        const filtered = prev.filter(u => u.phone !== data.user.phone);
+        const updated = [data.user, ...filtered];
+        localStorage.setItem('asha_registered_users', JSON.stringify(updated));
+        return updated;
+      });
+
       if (data.user.coordinates) {
         registerDynamicVillage(data.user.location, data.user.coordinates.latitude, data.user.coordinates.longitude);
         updateLocation(data.user.coordinates, data.user.location, true);
@@ -314,10 +371,10 @@ function App() {
       showToast('Logged in successfully!');
     } catch (err) {
       // Check locally registered users if server failed
-      const foundUser = registeredUsers.find(u => u.phone === phone && u.password === password);
+      const foundUser = registeredUsers.find(u => u.phone === cleanPhone && u.password === cleanPass);
       if (foundUser) {
         setUser(foundUser);
-        localStorage.setItem('token', 'offline-token-' + foundUser.id);
+        localStorage.setItem('token', 'offline-token-' + (foundUser.id || foundUser._id));
         localStorage.setItem('asha_user', JSON.stringify(foundUser));
         if (foundUser.coordinates) {
           registerDynamicVillage(foundUser.location, foundUser.coordinates.latitude, foundUser.coordinates.longitude);
@@ -325,7 +382,7 @@ function App() {
         }
         showToast('Logged in successfully!');
       } else {
-        setError(err.message || 'Invalid phone number or password.');
+        setError(err.message || 'This mobile number is not registered. Please register first.');
       }
     } finally {
       setLoading(false);
@@ -336,6 +393,14 @@ function App() {
     setUser(userData);
     localStorage.setItem('token', token);
     localStorage.setItem('asha_user', JSON.stringify(userData));
+
+    setRegisteredUsers(prev => {
+      const filtered = prev.filter(u => u.phone !== userData.phone && u.googleId !== userData.googleId);
+      const updated = [userData, ...filtered];
+      localStorage.setItem('asha_registered_users', JSON.stringify(updated));
+      return updated;
+    });
+
     if (userData.coordinates) {
       registerDynamicVillage(userData.location, userData.coordinates.latitude, userData.coordinates.longitude);
       updateLocation(userData.coordinates, userData.location, true);
@@ -352,28 +417,28 @@ function App() {
     showToast('Signed out successfully.');
   };
 
-  // Fetch Patients & Triage History from Backend on User Login
+  // Fetch Patients & Triage History directly from MongoDB Atlas Backend on User Login
   useEffect(() => {
     if (user) {
-      // Fetch Patients
+      // Fetch Patients from MongoDB
       fetch(`${API_BASE_URL}/api/patients`)
         .then(res => res.ok ? res.json() : null)
         .then(data => {
-          if (data && Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             setPatients(data);
           }
         })
-        .catch(err => console.warn('Could not fetch patients from backend, using local:', err));
+        .catch(err => console.warn('Could not fetch patients from MongoDB backend, using local cache:', err));
 
-      // Fetch Triage History
+      // Fetch Triage History from MongoDB
       fetch(`${API_BASE_URL}/api/triage`)
         .then(res => res.ok ? res.json() : null)
         .then(data => {
-          if (data && Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             setTriageHistory(data);
           }
         })
-        .catch(err => console.warn('Could not fetch triage history from backend, using local:', err));
+        .catch(err => console.warn('Could not fetch triage history from MongoDB backend, using local cache:', err));
     }
   }, [user]);
 

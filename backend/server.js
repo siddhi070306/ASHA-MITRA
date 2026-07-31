@@ -202,20 +202,32 @@ app.post('/api/auth/google/register', async (req, res) => {
     }
 
     const { googleId, email } = googleUser;
+    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
 
     if (isMongoConnected) {
-      // Ensure phone number isn't already taken
-      const existingPhoneUser = await User.findOne({ phone });
-      if (existingPhoneUser) {
-        return res.status(409).json({ error: 'A user with this phone number is already registered.' });
-      }
-
-      // Ensure googleId or email isn't already registered
+      // Check if googleId or email isn't already registered
       const existingGoogleUser = await User.findOne({
         $or: [{ googleId }, { email }]
       });
       if (existingGoogleUser) {
-        return res.status(409).json({ error: 'This Google account is already registered.' });
+        const token = jwt.sign(
+          { id: existingGoogleUser._id, phone: existingGoogleUser.phone, role: existingGoogleUser.role },
+          SECRET_KEY,
+          { expiresIn: '30d' }
+        );
+        const userObj = existingGoogleUser.toObject();
+        delete userObj.password;
+        return res.status(200).json({
+          message: 'Google account already registered. Logged in successfully!',
+          token,
+          user: { ...userObj, id: userObj._id }
+        });
+      }
+
+      // Check if phone number is already registered
+      const existingPhoneUser = await User.findOne({ phone: cleanPhone });
+      if (existingPhoneUser) {
+        return res.status(409).json({ error: 'A user with this phone number is already registered.' });
       }
 
       const geoCoord = coordinates 
@@ -223,8 +235,8 @@ app.post('/api/auth/google/register', async (req, res) => {
         : [80.3500, 23.8000];
 
       const newUser = new User({
-        name,
-        phone,
+        name: name.trim(),
+        phone: cleanPhone,
         googleId,
         email,
         role: role || 'ASHA Worker',
@@ -256,17 +268,29 @@ app.post('/api/auth/google/register', async (req, res) => {
 
     // JSON Fallback Mode
     const users = getJsonUsers();
-    if (users.find(u => u.phone === phone)) {
-      return res.status(409).json({ error: 'A user with this phone number is already registered.' });
+    const existingGoogle = users.find(u => u.googleId === googleId || (u.email && u.email.toLowerCase() === email.toLowerCase()));
+    if (existingGoogle) {
+      const token = jwt.sign(
+        { id: existingGoogle.id, phone: existingGoogle.phone, role: existingGoogle.role },
+        SECRET_KEY,
+        { expiresIn: '30d' }
+      );
+      const { password: _, ...userProfile } = existingGoogle;
+      return res.status(200).json({
+        message: 'Google account already registered. Logged in successfully!',
+        token,
+        user: userProfile
+      });
     }
-    if (users.find(u => u.googleId === googleId || (u.email && u.email.toLowerCase() === email.toLowerCase()))) {
-      return res.status(409).json({ error: 'This Google account is already registered.' });
+
+    if (users.find(u => u.phone === cleanPhone)) {
+      return res.status(409).json({ error: 'A user with this phone number is already registered.' });
     }
 
     const newUser = {
       id: Date.now(),
-      name,
-      phone,
+      name: name.trim(),
+      phone: cleanPhone,
       googleId,
       email,
       role: role || 'ASHA Worker',
@@ -304,18 +328,34 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+    const cleanPass = password.trim();
+
     if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
       return res.status(400).json({ error: 'Please provide a valid 10-digit Indian phone number starting with 6, 7, 8, or 9.' });
     }
 
-    if (password.trim().length < 6) {
+    if (cleanPass.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
     if (isMongoConnected) {
-      const existingUser = await User.findOne({ phone });
+      const existingUser = await User.findOne({ phone: cleanPhone });
       if (existingUser) {
-        return res.status(409).json({ error: 'A user with this phone number is already registered.' });
+        if (existingUser.password === cleanPass) {
+          const token = jwt.sign(
+            { id: existingUser._id, phone: existingUser.phone, role: existingUser.role },
+            SECRET_KEY,
+            { expiresIn: '30d' }
+          );
+          const userObj = existingUser.toObject();
+          delete userObj.password;
+          return res.status(200).json({
+            message: 'Account already registered. Logged in successfully!',
+            token,
+            user: { ...userObj, id: userObj._id }
+          });
+        }
+        return res.status(409).json({ error: 'A user with this phone number is already registered with a different password.' });
       }
 
       const geoCoord = coordinates 
@@ -323,9 +363,9 @@ app.post('/api/auth/register', async (req, res) => {
         : [80.3500, 23.8000];
 
       const newUser = new User({
-        name,
-        phone,
-        password,
+        name: name.trim(),
+        phone: cleanPhone,
+        password: cleanPass,
         role: role || 'ASHA Worker',
         location,
         coordinates,
@@ -355,15 +395,29 @@ app.post('/api/auth/register', async (req, res) => {
 
     // JSON Fallback
     const users = getJsonUsers();
-    if (users.find(u => u.phone === phone)) {
-      return res.status(409).json({ error: 'A user with this phone number is already registered.' });
+    const existingUser = users.find(u => u.phone === cleanPhone);
+    if (existingUser) {
+      if (existingUser.password === cleanPass) {
+        const token = jwt.sign(
+          { id: existingUser.id, phone: existingUser.phone, role: existingUser.role },
+          SECRET_KEY,
+          { expiresIn: '30d' }
+        );
+        const { password: _, ...userProfile } = existingUser;
+        return res.status(200).json({
+          message: 'Account already registered. Logged in successfully!',
+          token,
+          user: userProfile
+        });
+      }
+      return res.status(409).json({ error: 'A user with this phone number is already registered with a different password.' });
     }
 
     const newUser = {
       id: Date.now(),
-      name,
-      phone,
-      password,
+      name: name.trim(),
+      phone: cleanPhone,
+      password: cleanPass,
       role: role || 'ASHA Worker',
       location,
       coordinates
@@ -396,22 +450,29 @@ app.post('/api/auth/login', async (req, res) => {
     const { phone, password } = req.body;
 
     if (!phone || !password) {
-      return res.status(400).json({ error: 'Phone and password are required.' });
+      return res.status(400).json({ error: 'Phone number and password are required.' });
     }
 
+    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
+    const cleanPass = password.trim();
+
     if (isMongoConnected) {
-      const user = await User.findOne({ phone, password });
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid phone number or password.' });
+      const userByPhone = await User.findOne({ phone: cleanPhone });
+      if (!userByPhone) {
+        return res.status(404).json({ error: 'This mobile number is not registered. Please register first.' });
+      }
+
+      if (userByPhone.password !== cleanPass) {
+        return res.status(401).json({ error: 'Incorrect password. Please try again.' });
       }
 
       const token = jwt.sign(
-        { id: user._id, phone: user.phone, role: user.role },
+        { id: userByPhone._id, phone: userByPhone.phone, role: userByPhone.role },
         SECRET_KEY,
         { expiresIn: '30d' }
       );
 
-      const userObj = user.toObject();
+      const userObj = userByPhone.toObject();
       delete userObj.password;
 
       return res.json({
@@ -423,18 +484,22 @@ app.post('/api/auth/login', async (req, res) => {
 
     // JSON Fallback
     const users = getJsonUsers();
-    const user = users.find(u => u.phone === phone && u.password === password);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid phone number or password.' });
+    const userByPhone = users.find(u => u.phone === cleanPhone);
+    if (!userByPhone) {
+      return res.status(404).json({ error: 'This mobile number is not registered. Please register first.' });
+    }
+
+    if (userByPhone.password !== cleanPass) {
+      return res.status(401).json({ error: 'Incorrect password. Please try again.' });
     }
 
     const token = jwt.sign(
-      { id: user.id, phone: user.phone, role: user.role },
+      { id: userByPhone.id, phone: userByPhone.phone, role: userByPhone.role },
       SECRET_KEY,
       { expiresIn: '30d' }
     );
 
-    const { password: _, ...userProfile } = user;
+    const { password: _, ...userProfile } = userByPhone;
     return res.json({
       message: 'Login successful',
       token,
