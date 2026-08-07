@@ -158,9 +158,12 @@ export default function HospitalsMap({ userCoords, userLocationName, setUserCoor
       });
       mapInstanceRef.current = map;
 
-      // Add OpenStreetMap Tile Layer
+      // Add Fast OpenStreetMap Tile Layer with buffer caching
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
+        keepBuffer: 4,
+        updateWhenIdle: true,
+        crossOrigin: true,
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       }).addTo(map);
 
@@ -200,12 +203,14 @@ export default function HospitalsMap({ userCoords, userLocationName, setUserCoor
 
       userMarkerRef.current = userMarker;
 
-      // Recalculate tile sizes after container layout is stabilized
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 150);
+      // Recalculate tile sizes rapidly after container layout mounts
+      [50, 150, 300].forEach(delay => {
+        setTimeout(() => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.invalidateSize();
+          }
+        }, delay);
+      });
     } catch (err) {
       console.error('Leaflet initialization error:', err);
       setMapError('Failed to initialize map display.');

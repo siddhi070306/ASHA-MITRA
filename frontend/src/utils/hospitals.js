@@ -215,10 +215,19 @@ export async function resolveLocationCoordinates(locationName, explicitCoords = 
   return NODE_COORDINATES['District Sector'];
 }
 
+// In-memory cache for Overpass API facility queries
+const OVERPASS_CACHE = new Map();
+
 /**
  * Fetch real-world nearby hospitals, clinics, PHCs, CHCs, dispensaries and doctors from OpenStreetMap Overpass API
  */
 export async function fetchNearbyHospitalsOverpass(lat, lng) {
+  const cacheKey = `${parseFloat(lat).toFixed(2)}_${parseFloat(lng).toFixed(2)}`;
+  if (OVERPASS_CACHE.has(cacheKey)) {
+    console.log(`⚡ Instant load from Overpass Cache for key (${cacheKey})`);
+    return OVERPASS_CACHE.get(cacheKey);
+  }
+
   const query = `[out:json][timeout:15];
 (
   nwr["amenity"="hospital"](around:12000,${lat},${lng});
@@ -243,7 +252,10 @@ out center;`;
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        if (data.elements) return data.elements;
+        if (data.elements) {
+          OVERPASS_CACHE.set(cacheKey, data.elements);
+          return data.elements;
+        }
       }
     } catch (err) {
       console.warn(`Overpass endpoint request failed (${url}):`, err.message);

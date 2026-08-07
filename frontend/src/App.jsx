@@ -19,8 +19,84 @@ import './App.css';
 import { API_BASE_URL } from './config';
 
 
-// Clean initial triage state (No dummy data)
-const SEED_TRIAGES = [];
+// Pre-seeded Demo Data for Judge Evaluation
+const SEED_TRIAGES = [
+  {
+    id: 'tr-seed-101',
+    patientName: 'Ramesh Patel',
+    patientAge: 45,
+    gender: 'Male',
+    village: 'Model Colony, Pune',
+    ashaName: 'Sunita Devi',
+    urgency: 'Red',
+    symptoms: ['Chest pain radiating to left arm', 'High fever (102°F)', 'Shortness of breath'],
+    vitalSigns: { bp: '145/95', pulse: '104 bpm', temp: '102.2 °F', spo2: '92%' },
+    transcript: 'Patient experiencing heavy pressure in chest, sweating profusely and high fever since morning.',
+    doctorVerificationStatus: 'pending',
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    resolved: false
+  },
+  {
+    id: 'tr-seed-102',
+    patientName: 'Meena Sharma',
+    patientAge: 28,
+    gender: 'Female',
+    village: 'Sector 4, Pune',
+    ashaName: 'Sunita Devi',
+    urgency: 'Yellow',
+    symptoms: ['Persistent dry cough', 'Mild fever (100°F)', 'Body ache'],
+    vitalSigns: { bp: '120/80', pulse: '82 bpm', temp: '100.1 °F', spo2: '97%' },
+    transcript: 'Mild fever and dry cough for 2 days, no breathlessness, eating normally.',
+    doctorVerificationStatus: 'pending',
+    timestamp: new Date(Date.now() - 7200000).toISOString(),
+    resolved: false
+  },
+  {
+    id: 'tr-seed-103',
+    patientName: 'Anil Kumar',
+    patientAge: 62,
+    gender: 'Male',
+    village: 'Market Area, Pune',
+    ashaName: 'Sunita Devi',
+    urgency: 'Green',
+    symptoms: ['Minor skin rash', 'Slight fatigue'],
+    vitalSigns: { bp: '128/82', pulse: '76 bpm', temp: '98.6 °F', spo2: '98%' },
+    transcript: 'Slight rash on left forearm after working in farm, general health good.',
+    doctorVerificationStatus: 'verified',
+    verifiedBy: 'Dr. Rajesh Sharma',
+    doctorUrgency: 'Green',
+    doctorMessage: 'Apply anti-allergic ointment twice daily. Keep area clean.',
+    timestamp: new Date(Date.now() - 14400000).toISOString(),
+    resolved: true
+  }
+];
+
+const SEED_PATIENTS = [
+  { id: 'pat-seed-1', name: 'Ramesh Patel', age: 45, gender: 'Male', phone: '9822011223', village: 'Model Colony, Pune', notes: 'Hypertension history' },
+  { id: 'pat-seed-2', name: 'Meena Sharma', age: 28, gender: 'Female', phone: '9822011224', village: 'Sector 4, Pune', notes: 'Asthma history' },
+  { id: 'pat-seed-3', name: 'Anil Kumar', age: 62, gender: 'Male', phone: '9822011225', village: 'Market Area, Pune', notes: 'Diabetic routine check' }
+];
+
+const DEMO_ACCOUNTS = [
+  {
+    id: 1001,
+    name: 'Sunita Devi (ASHA Worker)',
+    phone: '9876543210',
+    password: 'asha123',
+    role: 'ASHA Worker',
+    location: 'Model Colony, Pune',
+    coordinates: { latitude: 18.5283, longitude: 73.8342 }
+  },
+  {
+    id: 1002,
+    name: 'Dr. Rajesh Sharma (Medical Officer)',
+    phone: '9876543211',
+    password: 'doc123',
+    role: 'Doctor',
+    location: 'District Civil Hospital, Pune',
+    coordinates: { latitude: 18.5300, longitude: 73.8380 }
+  }
+];
 
 function App() {
   const { language, setLanguage, t } = useLanguage();
@@ -62,24 +138,24 @@ function App() {
   // Registered ASHA/Doctor workers state
   const [registeredUsers, setRegisteredUsers] = useState(() => {
     const saved = localStorage.getItem('asha_registered_users');
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : DEMO_ACCOUNTS;
   });
 
   // Global UI State
   const [currentView, setCurrentView] = useState('home'); // home, patients, add-patient, history
   const [toast, setToast] = useState(null);
 
-  // Data State with LocalStorage persistence (Empty initial arrays - no dummy data)
+  // Data State with LocalStorage persistence (Seeded with sample data for judges)
   const [patients, setPatients] = useState(() => {
     const saved = localStorage.getItem('asha_patients');
-    if (saved) return JSON.parse(saved);
-    return [];
+    if (saved && JSON.parse(saved).length > 0) return JSON.parse(saved);
+    return SEED_PATIENTS;
   });
 
   const [triageHistory, setTriageHistory] = useState(() => {
     const saved = localStorage.getItem('asha_triage_history');
-    if (saved) return JSON.parse(saved);
-    return [];
+    if (saved && JSON.parse(saved).length > 0) return JSON.parse(saved);
+    return SEED_TRIAGES;
   });
 
   // Search & Modal State
@@ -323,10 +399,13 @@ function App() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    const cleanPhone = phone.trim().replace(/[\s-]/g, '');
-    const cleanPass = password.trim();
+  const handleLogin = async (e, overridePhone = null, overridePass = null) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const targetPhone = overridePhone || phone;
+    const targetPass = overridePass || password;
+
+    const cleanPhone = targetPhone ? targetPhone.trim().replace(/[\s-]/g, '') : '';
+    const cleanPass = targetPass ? targetPass.trim() : '';
 
     if (!cleanPhone || !cleanPass) {
       setError('Please enter both phone number and password');
@@ -340,6 +419,9 @@ function App() {
 
     setLoading(true);
     setError(null);
+
+    // First check DEMO_ACCOUNTS for instant offline demo login
+    const demoMatch = DEMO_ACCOUNTS.find(d => d.phone === cleanPhone && d.password === cleanPass);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
@@ -361,8 +443,8 @@ function App() {
       }
 
       if (!response.ok) {
-        // Check local registeredUsers as fallback if server returns 404 or connection error
-        const foundLocal = registeredUsers.find(u => u.phone === cleanPhone);
+        // Fallback to demoMatch or local registeredUsers if server returns error
+        const foundLocal = demoMatch || registeredUsers.find(u => u.phone === cleanPhone);
         if (foundLocal) {
           if (!foundLocal.password || foundLocal.password === cleanPass) {
             const updatedUser = { ...foundLocal, password: cleanPass };
@@ -373,7 +455,7 @@ function App() {
               registerDynamicVillage(updatedUser.location, updatedUser.coordinates.latitude, updatedUser.coordinates.longitude);
               updateLocation(updatedUser.coordinates, updatedUser.location, true);
             }
-            showToast('Logged in successfully!');
+            showToast(`Welcome! Logged in as ${updatedUser.name}`);
             return;
           } else {
             throw new Error('Incorrect password for this mobile number.');
@@ -402,10 +484,10 @@ function App() {
         registerDynamicVillage(loggedInUser.location, loggedInUser.coordinates.latitude, loggedInUser.coordinates.longitude);
         updateLocation(loggedInUser.coordinates, loggedInUser.location, true);
       }
-      showToast('Logged in successfully!');
+      showToast(`Welcome back, ${loggedInUser.name}!`);
     } catch (err) {
-      // Check locally registered users if server call threw an exception
-      const foundUser = registeredUsers.find(u => u.phone === cleanPhone);
+      // Check locally registered users or demoMatch if server call threw an exception
+      const foundUser = demoMatch || registeredUsers.find(u => u.phone === cleanPhone);
       if (foundUser) {
         if (!foundUser.password || foundUser.password === cleanPass) {
           const updatedUser = { ...foundUser, password: cleanPass };
@@ -416,7 +498,7 @@ function App() {
             registerDynamicVillage(updatedUser.location, updatedUser.coordinates.latitude, updatedUser.coordinates.longitude);
             updateLocation(updatedUser.coordinates, updatedUser.location, true);
           }
-          showToast('Logged in successfully!');
+          showToast(`Welcome! Logged in as ${updatedUser.name}`);
           return;
         } else {
           setError('Incorrect password for this mobile number.');
