@@ -1,5 +1,5 @@
 /**
- * ASHA Saathi - Blockchain Anchoring Frontend Client Integration
+ * ASHA Mitra - Blockchain Anchoring Frontend Client Integration
  * 
  * This file serves as the Web3 connector template using Ethers.js.
  * To use a live deployment, run:

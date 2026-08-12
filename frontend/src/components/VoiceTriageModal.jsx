@@ -579,7 +579,7 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
   const getWhatsAppText = () => {
     const alertSymbol = urgency === 'Red' ? '🚨 RED ALERT' : urgency === 'Yellow' ? '⚠️ YELLOW ALERT' : '✅ GREEN STATUS';
     const text = 
-      `*ASHA Saathi Clinical Referral Slip*\n` +
+      `*ASHA Mitra Clinical Referral Slip*\n` +
       `----------------------------------------\n` +
       `*Patient Name:* ${currentPatient?.name || 'Registered Patient'}\n` +
       `*Profile:* ${currentPatient ? `${currentPatient.age}y · ${currentPatient.gender}` : 'Registered'}\n` +

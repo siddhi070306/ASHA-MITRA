@@ -1,7 +1,7 @@
 export const translations = {
   en: {
     // Navigation
-    app_title: "ASHA Saathi",
+    app_title: "ASHA Mitra",
     subtitle: "AI Triage Companion",
     workspace: "ASHA WORKSPACE",
     supervisor_workspace: "Supervisor Workspace",
@@ -34,7 +34,7 @@ export const translations = {
     for_india_frontline: "For India's Frontline",
     speak_triage_save: "Speak. Triage. Save lives.",
     hero_desc: "AI-powered voice triage in 12 Indian languages — built for ASHA workers in rural India. Works offline, syncs when online.",
-    copyright: "© ASHA Saathi · Tamper-Proof Health Records",
+    copyright: "© ASHA Mitra · Tamper-Proof Health Records",
     or: "OR",
     continue_with_google: "Continue with Google",
     google_register_title: "Complete Google Registration",
@@ -134,7 +134,7 @@ export const translations = {
     stop_analyze: "Stop & Analyze Voice",
     live_preview: "Live Preview",
     capturing_mic: "Capturing live microphone audio for Sarvam AI Speech Recognition...",
-    ai_at_work: "ASHA Saathi AI Triage at Work",
+    ai_at_work: "ASHA Mitra AI Triage at Work",
     ai_work_desc: "Transcribing regional audio, translating to English, and applying diagnostic protocols...",
     verify_edit_symptoms: "Verify & Edit Symptoms",
     edit_symptoms_label: "Edit Symptoms (one per line)",

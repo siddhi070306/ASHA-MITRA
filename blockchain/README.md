@@ -1,4 +1,4 @@
-# ASHA Saathi Blockchain Anchoring System
+# ASHA Mitra Blockchain Anchoring System
 
 This folder contains the Solidity smart contract and deployment files to support the tamper-proof clinical records feature on the **Polygon Blockchain**.
 

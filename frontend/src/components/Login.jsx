@@ -55,7 +55,7 @@ function LocationInputWithDropdown({
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&addressdetails=1`, {
             headers: {
               'Accept-Language': 'en',
-              'User-Agent': 'ASHA-Saathi-Triage-Companion-Agent'
+              'User-Agent': 'ASHA-Mitra-Triage-Companion-Agent'
             }
           });
           if (res.ok) {

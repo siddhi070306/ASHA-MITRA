@@ -145,7 +145,7 @@ export async function reverseGeocode(lat, lng) {
     const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14`, {
       headers: {
         'Accept-Language': 'en',
-        'User-Agent': 'ASHA-Saathi-Triage-Companion-Agent'
+        'User-Agent': 'ASHA-Mitra-Triage-Companion-Agent'
       }
     });
     if (!response.ok) throw new Error('Nominatim reverse geocode request failed');
@@ -168,7 +168,7 @@ export async function forwardGeocode(name) {
     const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(name)}&limit=1`, {
       headers: {
         'Accept-Language': 'en',
-        'User-Agent': 'ASHA-Saathi-Triage-Companion-Agent'
+        'User-Agent': 'ASHA-Mitra-Triage-Companion-Agent'
       }
     });
     if (!response.ok) throw new Error('Nominatim forward geocode request failed');

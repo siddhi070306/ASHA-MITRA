@@ -1102,7 +1102,7 @@ function App() {
 
                   <div className="p-4 bg-[#FDFBF7] border border-slate-200 rounded-2xl text-xs text-slate-500">
                     <p className="leading-relaxed">
-                      💡 <b>How it works:</b> ASHA Saathi automatically creates a safe digital receipt for every patient record. This ensures patient records are protected from any changes or loss, giving ASHA workers and doctors a reliable, trustworthy record.
+                      💡 <b>How it works:</b> ASHA Mitra automatically creates a safe digital receipt for every patient record. This ensures patient records are protected from any changes or loss, giving ASHA workers and doctors a reliable, trustworthy record.
                     </p>
                   </div>
                 </div>

@@ -53,7 +53,7 @@ export default function HospitalsMap({ userCoords, userLocationName, setUserCoor
       const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`, {
         headers: {
           'Accept-Language': 'en',
-          'User-Agent': 'ASHA-Saathi-Triage-Companion-Agent'
+          'User-Agent': 'ASHA-Mitra-Triage-Companion-Agent'
         }
       });
       if (!response.ok) throw new Error("Search request failed");
