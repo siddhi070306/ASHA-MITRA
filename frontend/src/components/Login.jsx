@@ -479,6 +479,15 @@ export default function Login({
                 <option value="en">English · English</option>
                 <option value="hi">हिन्दी · Hindi</option>
                 <option value="mr">मराठी · Marathi</option>
+                <option value="bn">বাংলা · Bengali</option>
+                <option value="ta">தமிழ் · Tamil</option>
+                <option value="te">తెలుగు · Telugu</option>
+                <option value="gu">ગુજરાતી · Gujarati</option>
+                <option value="kn">ಕನ್ನಡ · Kannada</option>
+                <option value="ml">മലയാളം · Malayalam</option>
+                <option value="pa">ਪੰਜਾਬੀ · Punjabi</option>
+                <option value="or">ଓଡ଼ିଆ · Odia</option>
+                <option value="ur">اردو · Urdu</option>
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             </div>

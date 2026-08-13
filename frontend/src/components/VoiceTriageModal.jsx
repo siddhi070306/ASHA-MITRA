@@ -9,7 +9,16 @@ import { formatDateTime } from '../utils/dateUtils';
 const INDIAN_LANGUAGES = [
   { code: 'hi', sarvamCode: 'hi-IN', name: 'हिन्दी · Hindi' },
   { code: 'en', sarvamCode: 'en-IN', name: 'English · English' },
-  { code: 'mr', sarvamCode: 'mr-IN', name: 'मराठी · Marathi' }
+  { code: 'mr', sarvamCode: 'mr-IN', name: 'मराठी · Marathi' },
+  { code: 'bn', sarvamCode: 'bn-IN', name: 'বাংলা · Bengali' },
+  { code: 'ta', sarvamCode: 'ta-IN', name: 'தமிழ் · Tamil' },
+  { code: 'te', sarvamCode: 'te-IN', name: 'తెలుగు · Telugu' },
+  { code: 'gu', sarvamCode: 'gu-IN', name: 'ગુજરાતી · Gujarati' },
+  { code: 'kn', sarvamCode: 'kn-IN', name: 'ಕನ್ನಡ · Kannada' },
+  { code: 'ml', sarvamCode: 'ml-IN', name: 'മലയാളം · Malayalam' },
+  { code: 'pa', sarvamCode: 'pa-IN', name: 'ਪੰਜਾਬੀ · Punjabi' },
+  { code: 'or', sarvamCode: 'or-IN', name: 'ଓଡ଼ିଆ · Odia' },
+  { code: 'ur', sarvamCode: 'ur-IN', name: 'اردو · Urdu' }
 ];
 
 const SYMPTOM_PRESETS = [
@@ -293,7 +302,8 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'mr' ? 'mr-IN' : 'en-IN';
+        const selectedLangObj = INDIAN_LANGUAGES.find(l => l.code === selectedLanguage);
+        recognition.lang = selectedLangObj ? selectedLangObj.sarvamCode : 'hi-IN';
         recognition.onresult = (event) => {
           let currentText = '';
           for (let i = 0; i < event.results.length; i++) {
@@ -423,12 +433,13 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
 
       recordedBase64Ref.current = base64Audio;
 
+      const selectedLangObj = INDIAN_LANGUAGES.find(l => l.code === selectedLanguage);
       const response = await fetch(`${API_BASE_URL}/api/speech-to-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           audio: base64Audio,
-          languageCode: selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'mr' ? 'mr-IN' : 'en-IN'
+          languageCode: selectedLangObj ? selectedLangObj.sarvamCode : `${selectedLanguage}-IN`
         })
       });
 
@@ -484,12 +495,13 @@ export default function VoiceTriageModal({ isOpen, onClose, patient, onSaveTriag
     transcriptRef.current = textToAnalyze;
 
     try {
+      const selectedLangObj = INDIAN_LANGUAGES.find(l => l.code === selectedLanguage);
       const res = await fetch(`${API_BASE_URL}/api/analyze-triage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: textToAnalyze,
-          language: selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'mr' ? 'mr-IN' : 'en-IN'
+          language: selectedLangObj ? selectedLangObj.sarvamCode : `${selectedLanguage}-IN`
         })
       });
 

@@ -748,6 +748,15 @@ function App() {
               <option value="en" className="bg-[#0A2540] text-white">English · English</option>
               <option value="hi" className="bg-[#0A2540] text-white">हिन्दी · Hindi</option>
               <option value="mr" className="bg-[#0A2540] text-white">मराठी · Marathi</option>
+              <option value="bn" className="bg-[#0A2540] text-white">বাংলা · Bengali</option>
+              <option value="ta" className="bg-[#0A2540] text-white">தமிழ் · Tamil</option>
+              <option value="te" className="bg-[#0A2540] text-white">తెలుగు · Telugu</option>
+              <option value="gu" className="bg-[#0A2540] text-white">ગુજરાતી · Gujarati</option>
+              <option value="kn" className="bg-[#0A2540] text-white">ಕನ್ನಡ · Kannada</option>
+              <option value="ml" className="bg-[#0A2540] text-white">മലയാളം · Malayalam</option>
+              <option value="pa" className="bg-[#0A2540] text-white">ਪੰਜਾਬੀ · Punjabi</option>
+              <option value="or" className="bg-[#0A2540] text-white">ଓଡ଼ିଆ · Odia</option>
+              <option value="ur" className="bg-[#0A2540] text-white">اردو · Urdu</option>
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
@@ -867,6 +876,15 @@ function App() {
               <option value="en" className="bg-[#0A2540] text-white">EN</option>
               <option value="hi" className="bg-[#0A2540] text-white">हिन्दी</option>
               <option value="mr" className="bg-[#0A2540] text-white">मराठी</option>
+              <option value="bn" className="bg-[#0A2540] text-white">বাংলা</option>
+              <option value="ta" className="bg-[#0A2540] text-white">தமிழ்</option>
+              <option value="te" className="bg-[#0A2540] text-white">తెలుగు</option>
+              <option value="gu" className="bg-[#0A2540] text-white">ગુજરાતી</option>
+              <option value="kn" className="bg-[#0A2540] text-white">ಕನ್ನಡ</option>
+              <option value="ml" className="bg-[#0A2540] text-white">മലയാളം</option>
+              <option value="pa" className="bg-[#0A2540] text-white">ਪੰਜਾਬੀ</option>
+              <option value="or" className="bg-[#0A2540] text-white">ଓଡ଼ିଆ</option>
+              <option value="ur" className="bg-[#0A2540] text-white">اردو</option>
             </select>
           </div>
           <div className="text-right flex flex-col items-end">

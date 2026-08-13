@@ -929,9 +929,10 @@ app.post('/api/translate', async (req, res) => {
     }
 
     let srcLang = sourceLanguageCode || 'hi-IN';
-    if (srcLang === 'hi') srcLang = 'hi-IN';
-    if (srcLang === 'mr') srcLang = 'mr-IN';
-    if (srcLang === 'en' || srcLang === 'en-IN') {
+    if (!srcLang.includes('-')) {
+      srcLang = `${srcLang}-IN`;
+    }
+    if (srcLang === 'en-IN') {
       return res.json({ translatedText: text }); // Already English
     }
 
