@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Activity, Phone, Lock, ArrowRight, Globe, ChevronDown, MapPin, Check, User, Navigation, Loader2, Stethoscope, Sparkles } from 'lucide-react';
+import { Activity, Phone, Lock, ArrowRight, Globe, ChevronDown, MapPin, Check, User, Navigation, Loader2 } from 'lucide-react';
 import { reverseGeocode, resolveLocationCoordinates } from '../utils/hospitals';
 import { useLanguage } from '../context/LanguageContext';
 import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../config';
@@ -224,24 +224,7 @@ export default function Login({
     handleFetchLocation();
   }, []);
 
-  const handleQuickDemoLogin = async (demoRole) => {
-    // Attempt real-time location fetch if not already done
-    if (!regCoords && navigator.geolocation) {
-      handleFetchLocation();
-    }
 
-    if (demoRole === 'Doctor') {
-      setPhone('9876543211');
-      setPassword('doc123');
-      const dummyEvent = { preventDefault: () => {} };
-      handleLogin(dummyEvent, '9876543211', 'doc123');
-    } else {
-      setPhone('9876543210');
-      setPassword('asha123');
-      const dummyEvent = { preventDefault: () => {} };
-      handleLogin(dummyEvent, '9876543210', 'asha123');
-    }
-  };
 
   const handleFetchLocation = () => {
     if (!navigator.geolocation) {
@@ -611,66 +594,6 @@ export default function Login({
                 <h1 className="font-heading text-3xl font-extrabold text-[#0A2540]">{t('sign_in')}</h1>
                 <p className="text-slate-600 mt-2 text-sm">{t('sign_in_desc')}</p>
 
-                {/* Judge Quick Demo Access Card */}
-                <div className="mt-4 p-4 rounded-2xl bg-gradient-to-br from-[#0A2540] to-[#163B60] text-white shadow-md border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                      <span className="text-xs font-black uppercase tracking-wider text-amber-300">Judge / Evaluator Demo Access</span>
-                    </div>
-                    <span className="text-[10px] bg-white/20 text-white font-bold px-2 py-0.5 rounded-full uppercase">1-Click Login</span>
-                  </div>
-
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                    Select a demo portal below to immediately test ASHA Mitra with real-time GPS tracking and pre-loaded triage records.
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDemoLogin('ASHA Worker')}
-                      disabled={loading}
-                      className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-extrabold text-xs flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.97] cursor-pointer"
-                    >
-                      <span className="flex items-center gap-1.5 text-emerald-300">
-                        <Activity className="w-4 h-4 text-emerald-400" />
-                        ASHA Worker
-                      </span>
-                      <span className="text-[9px] text-slate-300 font-medium">Sunita Devi (Field)</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickDemoLogin('Doctor')}
-                      disabled={loading}
-                      className="p-2.5 rounded-xl bg-[#E07A5F] hover:bg-[#D46A4F] text-white font-extrabold text-xs flex flex-col items-center justify-center gap-1 transition-all active:scale-[0.97] shadow-soft cursor-pointer"
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <Stethoscope className="w-4 h-4 text-amber-200" />
-                        Doctor Portal
-                      </span>
-                      <span className="text-[9px] text-white/80 font-medium">Dr. Rajesh Sharma</span>
-                    </button>
-                  </div>
-
-                  {/* Real-Time Location Banner */}
-                  <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300">
-                    <div className="flex items-center gap-1.5 overflow-hidden pr-2">
-                      <MapPin className="w-3.5 h-3.5 text-[#E07A5F] shrink-0" />
-                      <span className="truncate font-medium">
-                        {regLocation ? regLocation : gpsMsg ? gpsMsg : 'Fetching real-time GPS...'}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleFetchLocation}
-                      disabled={gpsLoading}
-                      className="text-[10px] text-amber-300 font-bold hover:underline shrink-0 bg-transparent border-none cursor-pointer"
-                    >
-                      {gpsLoading ? 'Detecting...' : 'Refetch GPS'}
-                    </button>
-                  </div>
-                </div>
               </div>
 
               {error && (

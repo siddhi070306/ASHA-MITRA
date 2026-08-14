@@ -54,73 +54,7 @@ function saveJsonUsers(users) {
   }
 }
 
-// Auto-seed Demo Users for Judges (ASHA Worker & Doctor)
-async function initDemoData() {
-  const DEMO_USERS = [
-    {
-      id: 1001,
-      name: 'Sunita Devi (ASHA Worker)',
-      phone: '9876543210',
-      password: 'asha123',
-      role: 'ASHA Worker',
-      location: 'Model Colony, Pune',
-      coordinates: { latitude: 18.5283, longitude: 73.8342 }
-    },
-    {
-      id: 1002,
-      name: 'Dr. Rajesh Sharma (Medical Officer)',
-      phone: '9876543211',
-      password: 'doc123',
-      role: 'Doctor',
-      location: 'District Civil Hospital, Pune',
-      coordinates: { latitude: 18.5300, longitude: 73.8380 }
-    }
-  ];
 
-  try {
-    // 1. Seed JSON file
-    const jsonUsers = getJsonUsers();
-    let jsonUpdated = false;
-    DEMO_USERS.forEach(demoUser => {
-      if (!jsonUsers.some(u => u.phone === demoUser.phone)) {
-        jsonUsers.push(demoUser);
-        jsonUpdated = true;
-      }
-    });
-    if (jsonUpdated || jsonUsers.length === 0) {
-      saveJsonUsers(jsonUsers);
-      console.log('✅ Demo accounts seeded into users.json fallback storage.');
-    }
-
-    // 2. Seed Mongo DB if connected
-    if (isMongoConnected) {
-      for (const demoUser of DEMO_USERS) {
-        const existing = await User.findOne({ phone: demoUser.phone });
-        if (!existing) {
-          const newUser = new User({
-            name: demoUser.name,
-            phone: demoUser.phone,
-            password: demoUser.password,
-            role: demoUser.role,
-            location: demoUser.location,
-            coordinates: demoUser.coordinates,
-            geoLocation: {
-              type: 'Point',
-              coordinates: [demoUser.coordinates.longitude, demoUser.coordinates.latitude]
-            }
-          });
-          await newUser.save();
-          console.log(`✅ Demo user created in MongoDB: ${demoUser.name} (${demoUser.role})`);
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('Demo user initialization error:', err.message);
-  }
-}
-
-// Trigger demo data seeding
-setTimeout(initDemoData, 1500);
 
 // Google OAuth Token Verification Helper
 async function verifyGoogleToken(idToken) {
@@ -765,9 +699,7 @@ app.post('/api/triage', async (req, res) => {
     records.unshift(newRecord);
     saveJsonData(TRIAGE_FILE, records);
     return res.status(201).json(newRecord);
-    records.unshift(newRecord);
-    saveJsonData(TRIAGE_FILE, records);
-    return res.status(201).json(newRecord);
+
   } catch (error) {
     console.error('Create Triage Error:', error);
     res.status(500).json({ error: 'Failed to create triage record' });
